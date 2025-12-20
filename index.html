@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <title>MediGuard Ultra (Secure)</title>
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063176.png">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #0ea5e9; --primary-dark: #0284c7;
+      --secondary: #6366f1; --accent: #f43f5e;
+      --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+      --bg-body: #0f172a; --bg-card: #1e293b;
+      --text-main: #f8fafc; --text-muted: #94a3b8;
+      --border: #334155; --radius: 16px; --nav-height: 70px;
+    }
+
+    [data-theme="light"] {
+      --bg-body: #f1f5f9; --bg-card: #ffffff;
+      --text-main: #0f172a; --text-muted: #64748b; --border: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg-body); color: var(--text-main);
+      height: 100vh; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    /* --- LAYOUT --- */
+    .app-header {
+      padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg-body); z-index: 10; border-bottom: 1px solid var(--border);
+    }
+    .app-title { font-size: 1.4rem; font-weight: 800; background: linear-gradient(to right, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    
+    .scroll-container { flex: 1; overflow-y: auto; padding: 20px 20px 100px 20px; scroll-behavior: smooth; }
+    .scroll-container::-webkit-scrollbar { width: 0px; } 
+
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-height);
+      background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center;
+      z-index: 100; padding-bottom: env(safe-area-inset-bottom);
+    }
+    [data-theme="light"] .bottom-nav { background: rgba(255, 255, 255, 0.95); }
+
+    .nav-btn {
+      border: none; background: none; color: var(--text-muted);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-size: 0.75rem; cursor: pointer; transition: 0.2s; width: 20%;
+    }
+    .nav-btn i { font-size: 1.4rem; transition: 0.2s; }
+    .nav-btn.active { color: var(--primary); }
+    .nav-btn.active i { transform: translateY(-2px); }
+
+    /* --- CARDS & FORMS --- */
+    .card {
+      background: var(--bg-card); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 16px; border: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .edit-highlight { border: 2px solid var(--warning); box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
+    
+    h2 { font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: var(--text-main); margin-top: 0; }
+    
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-weight: 600; font-size: 1rem; cursor: pointer;
+      display: flex; justify-content: center; align-items: center; gap: 8px;
+      transition: 0.2s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-sm { padding: 8px 12px; font-size: 0.9rem; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-secondary { background: var(--secondary); color: white; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+    .btn-icon { width: 35px; height: 35px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); background: var(--bg-body); color:var(--text-main); cursor: pointer; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+    .form-input, select, textarea {
+      width: 100%; padding: 12px; background: var(--bg-body);
+      border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text-main); font-size: 1rem; outline: none;
+      font-family: inherit;
+    }
+    .form-input:focus { border-color: var(--primary); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    
+    /* --- SYMPTOM TAGS (aus App 2) --- */
+    .tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .tag {
+        padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border);
+        font-size: 0.8rem; cursor: pointer; background: var(--bg-body); color: var(--text-muted);
+        transition: 0.2s; user-select: none;
+    }
+    .tag.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* --- MODALS --- */
+    .modal-overlay {
+      position: fixed; inset: 0; background: var(--bg-body); z-index: 2000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; text-align: center;
+    }
+    .take-modal {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1500;
+        display: none; align-items: flex-end; justify-content: center;
+    }
+    .take-modal.active { display: flex; }
+    .take-modal-content {
+        background: var(--bg-card); width: 100%; max-width: 600px;
+        border-radius: 20px 20px 0 0; padding: 25px;
+        animation: slideUp 0.3s ease; border-top: 1px solid var(--primary);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .view { display: none; animation: fadeIn 0.3s ease; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Coach Colors */
+    .val-danger { color: var(--danger); font-weight: bold; }
+    .val-warning { color: var(--warning); font-weight: bold; }
+    .val-success { color: var(--success); font-weight: bold; }
+    .coach-card { background: linear-gradient(135deg, rgba(30,41,59,0.5), rgba(15,23,42,0.5)); border-left: 5px solid var(--primary); margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+
+  <div id="loginScreen" class="modal-overlay">
+    <div style="font-size: 4rem; color: var(--primary); margin-bottom: 20px;"><i class="fas fa-shield-halved"></i></div>
+    <h1 style="margin: 0;">MediGuard</h1>
+    <p class="text-muted">Sicher & Verschlüsselt</p>
+    
+    <div id="setupMessage" style="display:none; color: var(--primary); margin:15px 0; font-weight:bold;">Neu? Setzen Sie Ihr Master-Passwort.</div>
+    
+    <div class="form-group" style="width: 100%; max-width: 300px;">
+      <input type="password" id="passwordInput" class="form-input" style="text-align: center; font-size: 1.2rem; letter-spacing: 3px;" placeholder="Passwort">
+    </div>
+    <div class="form-group" style="width: 100%; max-width: 300px; display:none;" id="pwConfirmGroup">
+        <input type="password" id="passwordConfirm" class="form-input" style="text-align: center; font-size: 1.2rem; letter-spacing: 3px;" placeholder="Wiederholen">
+    </div>
+
+    <button onclick="app.loginOrSetup()" class="btn btn-primary" style="max-width: 300px;">
+        <span id="loginBtnText">Entsperren</span>
+    </button>
+    <div id="loginError" style="color: var(--danger); margin-top: 15px; font-size: 0.9rem;"></div>
+  </div>
+
+  <div id="takeModal" class="take-modal">
+      <div class="take-modal-content">
+          <h2 id="takeModalHeader">Einnahme</h2>
+          <p id="takeModalTitle" class="text-muted"></p>
+          <div class="form-group"><label class="form-label">Zeitpunkt</label><input type="datetime-local" id="takeTime" class="form-input"></div>
+          <div class="form-group"><label class="form-label">Notiz</label><input type="text" id="takeNote" class="form-input" placeholder="Bemerkung..."></div>
+          <input type="hidden" id="takeMedId"><input type="hidden" id="takeMode">
+          <div class="grid-2">
+              <button onclick="app.closeTakeModal()" class="btn btn-outline">Abbrechen</button>
+              <button onclick="app.confirmTakeMed()" class="btn btn-primary">OK</button>
+          </div>
+      </div>
+  </div>
+
+  <header class="app-header">
+    <div class="app-title">MediGuard Ultra</div>
+    <div onclick="app.toggleTheme()" style="cursor: pointer; padding: 8px;"><i class="fas fa-adjust"></i></div>
+  </header>
+
+  <div class="scroll-container">
+    
+    <div id="view-dashboard" class="view active">
+      <div id="coachArea"></div>
+      
+      <div class="grid-2">
+        <div class="card" style="text-align: center; padding: 15px;">
+          <i class="fas fa-heartbeat" style="color: var(--accent); font-size: 1.5rem; margin-bottom: 8px;"></i>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Letzter BD</div>
+          <div style="font-weight: bold; font-size: 1.1rem;" id="dashLastBP">--/--</div>
+        </div>
+        <div class="card" style="text-align: center; padding: 15px;">
+          <i class="fas fa-weight" style="color: var(--success); font-size: 1.5rem; margin-bottom: 8px;"></i>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Gewicht & BMI</div>
+          <div id="dashLastWeight">--</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><i class="fas fa-chart-line"></i> Trend (7 Tage)</h2>
+        <div style="height: 200px;"><canvas id="mainChart"></canvas></div>
+      </div>
+    </div>
+
+    <div id="view-vitals" class="view">
+      <div id="vitalInputCard" class="card">
+        <h2><i class="fas fa-plus-circle"></i> Messung erfassen</h2>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <button onclick="app.setVitalMode('bp')" id="btnModeBP" class="btn btn-sm btn-primary" style="flex:1;">Blutdruck</button>
+          <button onclick="app.setVitalMode('weight')" id="btnModeWeight" class="btn btn-sm btn-outline" style="flex:1;">Gewicht</button>
+          <button onclick="app.setVitalMode('sugar')" id="btnModeSugar" class="btn btn-sm btn-outline" style="flex:1;">Zucker</button>
+        </div>
+
+        <form onsubmit="app.saveVital(event)">
+          <input type="hidden" id="vitalEditId"> <div class="form-group">
+              <label class="form-label">Datum & Zeit</label>
+              <input type="datetime-local" id="vitalDate" class="form-input" required>
+          </div>
+          
+          <div id="inputsBP">
+            <div class="grid-3">
+                <div class="form-group"><label class="form-label">Sys</label><input type="number" id="bpSys" class="form-input" placeholder="120" inputmode="numeric"></div>
+                <div class="form-group"><label class="form-label">Dia</label><input type="number" id="bpDia" class="form-input" placeholder="80" inputmode="numeric"></div>
+                <div class="form-group"><label class="form-label">Puls</label><input type="number" id="bpPulse" class="form-input" placeholder="60" inputmode="numeric"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Symptome (auswählen)</label>
+                <div class="tag-container" id="symptomTags">
+                    <div class="tag" onclick="this.classList.toggle('active')">Müdigkeit</div>
+                    <div class="tag" onclick="this.classList.toggle('active')">Schwindel</div>
+                    <div class="tag" onclick="this.classList.toggle('active')">Kopfschmerz</div>
+                    <div class="tag" onclick="this.classList.toggle('active')">Übelkeit</div>
+                    <div class="tag" onclick="this.classList.toggle('active')">Herzrasen</div>
+                    <div class="tag" onclick="this.classList.toggle('active')">Stress</div>
+                </div>
+            </div>
+          </div>
+
+          <div id="inputsWeight" style="display:none;">
+              <div class="form-group"><label class="form-label">Gewicht (kg)</label><input type="number" id="weightKg" class="form-input" placeholder="kg" step="0.1" inputmode="decimal"></div>
+          </div>
+
+          <div id="inputsSugar" style="display:none;">
+              <div class="form-group"><label class="form-label">Blutzucker (mg/dL)</label><input type="number" id="sugarVal" class="form-input" placeholder="Wert" inputmode="numeric"></div>
+          </div>
+          
+          <div class="form-group">
+              <label class="form-label">Notiz / Tagebuch</label>
+              <textarea id="vitalNote" class="form-input" rows="2" placeholder="Bemerkung..."></textarea>
+          </div>
+
+          <div class="grid-2">
+              <button type="submit" id="btnVitalSave" class="btn btn-primary" style="margin-top:10px;">Speichern</button>
+              <button type="button" id="btnVitalCancel" onclick="app.cancelVitalEdit()" class="btn btn-outline" style="margin-top:10px; display:none;">Abbrechen</button>
+          </div>
+        </form>
+      </div>
+      
+      <div class="card">
+          <h2><i class="fas fa-history"></i> Verlauf</h2>
+          <div id="vitalsList"></div>
+      </div>
+    </div>
+
+    <div id="view-meds" class="view">
+      <button onclick="app.toggleMedDb()" class="btn btn-secondary" style="margin-bottom: 15px;"><i class="fas fa-folder-open"></i> Katalog</button>
+      
+      <div id="medDbSection" class="card" style="display:none; border: 1px solid var(--secondary);">
+        <h2>Katalog bearbeiten</h2>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input type="text" id="newDbMedName" class="form-input" placeholder="Neues Medikament">
+            <button onclick="app.addMedToDb()" class="btn btn-primary"><i class="fas fa-plus"></i></button>
+        </div>
+        <div id="medDbList" style="max-height: 150px; overflow-y:auto;"></div>
+      </div>
+
+      <div class="card" id="medInputCard">
+        <h2><i class="fas fa-capsules"></i> Plan</h2>
+        <form onsubmit="app.saveMedPlan(event)">
+          <input type="hidden" id="medEditId">
+          <div class="form-group"><select id="medSelect" class="form-input" required><option value="">Wählen...</option></select></div>
+          <div class="grid-2">
+            <div class="form-group"><input type="text" id="medDose" class="form-input" placeholder="Dosis"></div>
+            <div class="form-group"><input type="number" id="medStock" class="form-input" placeholder="Vorrat"></div>
+          </div>
+          <div class="form-group"><input type="text" id="medTimes" class="form-input" placeholder="Zeit (z.B. 08:00, 20:00)"></div>
+          <div class="grid-2">
+              <button type="submit" id="btnMedSave" class="btn btn-primary">Speichern</button>
+              <button type="button" id="btnMedCancel" onclick="app.cancelMedEdit()" class="btn btn-outline" style="display:none;">Abbrechen</button>
+          </div>
+        </form>
+      </div>
+      <div id="medicationList"></div>
+      <div class="card" style="margin-top:20px;"><h2><i class="fas fa-clipboard-list"></i> Einnahme-Protokoll</h2><div id="medHistoryList"></div></div>
+    </div>
+
+    <div id="view-emergency" class="view">
+      <div class="card emergency-card">
+        <span class="blood-type" id="dispBloodType" style="float:right; font-weight:bold; font-size:1.5rem; color:var(--accent);">?</span>
+        <h2><i class="fas fa-star-of-life" style="color: var(--accent);"></i> Notfallpass</h2>
+        <div class="stat-row"><span>Name</span><strong id="dispName">-</strong></div>
+        <div class="stat-row"><span>Geburtsdatum</span><strong id="dispBirth">-</strong></div>
+        <div style="margin-top: 20px;"><label class="form-label">Allergien / Diagnosen</label><div id="dispAllergies" style="padding: 10px; background:rgba(0,0,0,0.1); border-radius: 8px;">-</div></div>
+      </div>
+      <div class="card">
+          <h2><i class="fas fa-phone"></i> Kontakte</h2>
+          <div id="contactList"></div>
+          <button onclick="app.addContact()" class="btn btn-outline btn-sm" style="margin-top:10px;"><i class="fas fa-plus"></i> Hinzufügen</button>
+      </div>
+      <div class="card">
+        <h2><i class="fas fa-user-edit"></i> Profil bearbeiten</h2>
+        <form onsubmit="app.saveProfile(event)">
+          <div class="form-group"><label class="form-label">Name</label><input type="text" id="profName" class="form-input"></div>
+          <div class="grid-2">
+              <div class="form-group"><label class="form-label">Geburt</label><input type="date" id="profBirth" class="form-input"></div>
+              <div class="form-group"><label class="form-label">Blutgruppe</label><select id="profBlood" class="form-input"><option value="">Wählen</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="0+">0+</option><option value="0-">0-</option><option value="AB+">AB+</option><option value="AB-">AB-</option></select></div>
+          </div>
+          <div class="grid-2">
+              <div class="form-group"><label class="form-label">Größe (cm)</label><input type="number" id="profHeight" class="form-input" placeholder="Wichtig für BMI"></div>
+              <div class="form-group"><label class="form-label">Allergien / Info</label><input type="text" id="profAllergies" class="form-input"></div>
+          </div>
+          <button type="submit" class="btn btn-primary">Profil Speichern</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="view-settings" class="view">
+      <div class="card">
+          <h2><i class="fas fa-file-export"></i> Export</h2>
+          <div class="grid-2">
+              <button onclick="app.exportPDF()" class="btn btn-outline">PDF</button>
+              <button onclick="app.exportExcel()" class="btn btn-outline">Excel</button>
+          </div>
+          <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
+          <h2><i class="fas fa-database"></i> Backup</h2>
+          <button onclick="app.backupJSON()" class="btn btn-primary">Backup speichern (JSON)</button>
+          <div class="form-group" style="margin-top:15px;">
+              <label class="form-label">Backup laden</label>
+              <input type="file" onchange="app.importJSON(this)" class="form-input">
+          </div>
+      </div>
+      <div class="card">
+          <h2><i class="fas fa-shield-alt"></i> Sicherheit</h2>
+          <button onclick="app.changePasswordPrompt()" class="btn btn-outline">Passwort ändern</button>
+          <button onclick="app.logout()" class="btn btn-secondary" style="margin-top:10px;">Abmelden</button>
+          <button onclick="app.hardReset()" class="btn btn-danger" style="margin-top:15px;">Reset (Löschen)</button>
+      </div>
+    </div>
+  </div> 
+  
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="app.nav('dashboard')"><i class="fas fa-th-large"></i><span>Start</span></button>
+    <button class="nav-btn" onclick="app.nav('vitals')"><i class="fas fa-activity"></i><span>Werte</span></button>
+    <button class="nav-btn" onclick="app.nav('meds')"><i class="fas fa-pills"></i><span>Medis</span></button>
+    <button class="nav-btn" onclick="app.nav('emergency')"><i class="fas fa-user-shield"></i><span>Notfall</span></button>
+    <button class="nav-btn" onclick="app.nav('settings')"><i class="fas fa-bars"></i><span>Menü</span></button>
+  </nav>
+
+  <script>
+    /* SECURITY ENGINE (Web Crypto API) */
+    const Security = {
+      algo: { name: "AES-GCM", length: 256 },
+      pbkdf2: { name: "PBKDF2", hash: "SHA-256", iterations: 100000 },
+      buffToB64: (b) => btoa(String.fromCharCode(...new Uint8Array(b))),
+      b64ToBuff: (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0)),
+      async deriveKey(pw, salt) {
+        const enc = new TextEncoder();
+        const km = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveKey"]);
+        return crypto.subtle.deriveKey({ ...this.pbkdf2, salt }, km, this.algo, false, ["encrypt", "decrypt"]);
+      },
+      async encrypt(data, pw) {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const key = await this.deriveKey(pw, salt);
+        const encData = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(data)));
+        return { salt: this.buffToB64(salt), iv: this.buffToB64(iv), content: this.buffToB64(encData) };
+      },
+      async decrypt(obj, pw) {
+        try {
+          const key = await this.deriveKey(pw, this.b64ToBuff(obj.salt));
+          const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: this.b64ToBuff(obj.iv) }, key, this.b64ToBuff(obj.content));
+          return JSON.parse(new TextDecoder().decode(dec));
+        } catch(e) { throw new Error("Key Error"); }
+      }
+    };
+
+    const DB_KEY = 'mediguard_ultra_v1';
+    const DEFAULT_MEDS = ["Aspirin", "Ibuprofen", "Paracetamol", "Pantoprazol", "Ramipril", "Bisoprolol", "Metformin", "L-Thyroxin"];
+
+    const app = {
+      key: null,
+      data: {
+        profile: { name: '', birth: '', blood: '', height: '', allergies: '', contacts: [] },
+        vitals: [], meds: [], medHistory: [], medDatabase: [...DEFAULT_MEDS], settings: { theme: 'dark' }
+      },
+      idleTimer: null,
+      chartInstance: null,
+
+      init: function() {
+        if(localStorage.getItem('mg_theme') === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        if(!localStorage.getItem(DB_KEY)) {
+            document.getElementById('setupMessage').style.display='block';
+            document.getElementById('pwConfirmGroup').style.display='block';
+            document.getElementById('loginBtnText').innerText='Einrichten';
+        }
+        this.resetDateInput();
+        ['click','keypress','touchstart'].forEach(e => document.addEventListener(e, () => this.resetAutoLock()));
+      },
+
+      /* AUTH */
+      loginOrSetup: async function() {
+          const p1 = document.getElementById('passwordInput').value;
+          const p2 = document.getElementById('passwordConfirm').value;
+          const db = localStorage.getItem(DB_KEY);
+          
+          if(!db) { // Setup
+              if(p1.length<4 || p1!==p2) return alert("Passwort Fehler");
+              this.key = p1; await this.save(); this.unlock();
+          } else { // Login
+              try {
+                  this.data = await Security.decrypt(JSON.parse(db), p1);
+                  if(!this.data.medDatabase) this.data.medDatabase = [...DEFAULT_MEDS]; // Migration fix
+                  this.key = p1; this.unlock();
+              } catch(e) { document.getElementById('loginError').innerText = "Falsches Passwort."; }
+          }
+      },
+      unlock: function() {
+          document.getElementById('loginScreen').style.display='none';
+          document.getElementById('passwordInput').value='';
+          this.renderAll(); this.resetAutoLock();
+      },
+      logout: function() { this.key=null; this.data=null; location.reload(); },
+      resetAutoLock: function() { clearTimeout(this.idleTimer); if(this.key) this.idleTimer=setTimeout(()=>this.logout(), 300000); }, // 5 min
+      save: async function() { if(this.key) localStorage.setItem(DB_KEY, JSON.stringify(await Security.encrypt(this.data, this.key))); },
+      hardReset: function() { if(confirm("Wirklich alles löschen?")) { localStorage.removeItem(DB_KEY); location.reload(); } },
+      changePasswordPrompt: async function() {
+        const o=prompt("Altes Passwort"); if(o!==this.key) return alert("Falsch");
+        const n=prompt("Neues Passwort"); if(n && n.length>=4) { this.key=n; await this.save(); alert("OK"); }
+      },
+
+      /* NAVIGATION & HELPER */
+      nav: function(v) { 
+          document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+          document.getElementById('view-'+v).classList.add('active');
+          document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
+          event.currentTarget.classList.add('active');
+          if(v==='dashboard') this.renderChart();
+      },
+      toggleTheme: function() {
+          const t = document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';
+          document.documentElement.setAttribute('data-theme', t); localStorage.setItem('mg_theme', t); this.renderChart();
+      },
+      resetDateInput: function() { 
+          const n = new Date(); n.setMinutes(n.getMinutes() - n.getTimezoneOffset()); 
+          document.getElementById('vitalDate').value = n.toISOString().slice(0,16); 
+      },
+
+      /* VITALS (LOGIC + EDIT) */
+      setVitalMode: function(m) {
+          ['inputsBP','inputsWeight','inputsSugar'].forEach(i=>document.getElementById(i).style.display='none');
+          ['btnModeBP','btnModeWeight','btnModeSugar'].forEach(i=>document.getElementById(i).className='btn btn-sm btn-outline');
+          if(m==='bp') { document.getElementById('inputsBP').style.display='block'; document.getElementById('btnModeBP').className='btn btn-sm btn-primary'; }
+          else if(m==='weight') { document.getElementById('inputsWeight').style.display='block'; document.getElementById('btnModeWeight').className='btn btn-sm btn-primary'; }
+          else { document.getElementById('inputsSugar').style.display='block'; document.getElementById('btnModeSugar').className='btn btn-sm btn-primary'; }
+      },
+      
+      saveVital: async function(e) {
+          e.preventDefault();
+          const id = document.getElementById('vitalEditId').value;
+          const date = document.getElementById('vitalDate').value;
+          const note = document.getElementById('vitalNote').value;
+          
+          let type, v1, v2, v3, tags=[];
+          if(document.getElementById('inputsBP').style.display !== 'none') {
+              type='bp'; 
+              v1 = parseInt(document.getElementById('bpSys').value);
+              v2 = parseInt(document.getElementById('bpDia').value);
+              v3 = parseInt(document.getElementById('bpPulse').value);
+              document.querySelectorAll('#symptomTags .tag.active').forEach(t => tags.push(t.innerText));
+              if(!v1 || !v2) return alert("Werte fehlen");
+          } else if (document.getElementById('inputsWeight').style.display !== 'none') {
+              type='weight'; v1=parseFloat(document.getElementById('weightKg').value);
+              if(!v1) return alert("Gewicht fehlt");
+          } else {
+              type='sugar'; v1=parseInt(document.getElementById('sugarVal').value);
+              if(!v1) return alert("Wert fehlt");
+          }
+
+          const entry = { id: id?parseInt(id):Date.now(), date, type, val1:v1, val2:v2, val3:v3, tags, note };
+          
+          if(id) {
+              const idx = this.data.vitals.findIndex(x => x.id == id);
+              if(idx > -1) this.data.vitals[idx] = entry;
+          } else {
+              this.data.vitals.unshift(entry);
+          }
+          
+          await this.save(); this.renderVitals(); this.renderDashboard(); this.cancelVitalEdit();
+      },
+
+      editVital: function(id) {
+          const v = this.data.vitals.find(x => x.id === id); if(!v) return;
+          this.setVitalMode(v.type);
+          
+          // Werte setzen
+          document.getElementById('vitalEditId').value = v.id;
+          document.getElementById('vitalDate').value = v.date;
+          document.getElementById('vitalNote').value = v.note || '';
+          
+          if(v.type === 'bp') {
+              document.getElementById('bpSys').value = v.val1;
+              document.getElementById('bpDia').value = v.val2;
+              document.getElementById('bpPulse').value = v.val3 || '';
+              // Tags resetten und setzen
+              document.querySelectorAll('#symptomTags .tag').forEach(t => {
+                  t.classList.remove('active');
+                  if(v.tags && v.tags.includes(t.innerText)) t.classList.add('active');
+              });
+          } else if(v.type === 'weight') {
+              document.getElementById('weightKg').value = v.val1;
+          } else {
+              document.getElementById('sugarVal').value = v.val1;
+          }
+          
+          // UI Feedback
+          document.getElementById('vitalInputCard').classList.add('edit-highlight');
+          document.getElementById('btnVitalSave').innerText = "Änderung speichern";
+          document.getElementById('btnVitalCancel').style.display = "inline";
+          document.querySelector('.scroll-container').scrollTop = 0; // Nach oben scrollen
+      },
+
+      cancelVitalEdit: function() {
+          document.getElementById('vitalEditId').value = "";
+          document.getElementById('btnVitalSave').innerText = "Speichern";
+          document.getElementById('btnVitalCancel').style.display = "none";
+          document.getElementById('vitalInputCard').classList.remove('edit-highlight');
+          ['bpSys','bpDia','bpPulse','weightKg','sugarVal','vitalNote'].forEach(i=>document.getElementById(i).value='');
+          document.querySelectorAll('#symptomTags .tag').forEach(t => t.classList.remove('active'));
+          this.resetDateInput();
+      },
+      
+      deleteVital: async function(id) { if(confirm("Löschen?")) { this.data.vitals = this.data.vitals.filter(x=>x.id!==id); await this.save(); this.renderVitals(); this.renderDashboard(); } },
+
+      /* MEDS */
+      saveMedPlan: async function(e) {
+          e.preventDefault(); const id=document.getElementById('medEditId').value;
+          const name=document.getElementById('medSelect').value; if(!name) return;
+          const entry = {
+              id: id?parseInt(id):Date.now(),
+              name: name,
+              dose: document.getElementById('medDose').value,
+              stock: parseInt(document.getElementById('medStock').value)||0,
+              times: document.getElementById('medTimes').value.split(',').map(s=>s.trim()).filter(s=>s)
+          };
+          if(id) { const i=this.data.meds.findIndex(x=>x.id==id); if(i>-1) this.data.meds[i]=entry; }
+          else this.data.meds.push(entry);
+          await this.save(); this.renderMedList(); this.cancelMedEdit();
+      },
+      editMed: function(id) {
+          const m = this.data.meds.find(x=>x.id===id); if(!m) return;
+          document.getElementById('medEditId').value=m.id;
+          document.getElementById('medSelect').value=m.name;
+          document.getElementById('medDose').value=m.dose;
+          document.getElementById('medStock').value=m.stock;
+          document.getElementById('medTimes').value=m.times.join(', ');
+          document.getElementById('btnMedSave').innerText="Update";
+          document.getElementById('btnMedCancel').style.display="inline";
+      },
+      cancelMedEdit: function() {
+          document.getElementById('medEditId').value=""; document.getElementById('medSelect').value="";
+          document.getElementById('medDose').value=""; document.getElementById('medStock').value=""; document.getElementById('medTimes').value="";
+          document.getElementById('btnMedSave').innerText="Speichern"; document.getElementById('btnMedCancel').style.display="none";
+      },
+      deleteMed: async function(id) { if(confirm("Löschen?")) { this.data.meds = this.data.meds.filter(x=>x.id!==id); await this.save(); this.renderMedList(); } },
+      
+      /* DB Handling */
+      toggleMedDb: function() { const s=document.getElementById('medDbSection'); s.style.display=s.style.display==='none'?'block':'none'; },
+      addMedToDb: async function() { const v=document.getElementById('newDbMedName').value.trim(); if(v && !this.data.medDatabase.includes(v)) { this.data.medDatabase.push(v); await this.save(); this.renderMedDbList(); this.renderMedSelect(); document.getElementById('newDbMedName').value=''; } },
+
+      /* TAKE LOGIC */
+      openTakeModal: function(id) {
+          const m = this.data.meds.find(x=>x.id===id); if(!m) return;
+          document.getElementById('takeMedId').value=id; document.getElementById('takeMode').value='new';
+          document.getElementById('takeModalTitle').innerText = `${m.name} ${m.dose}`;
+          const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset());
+          document.getElementById('takeTime').value = n.toISOString().slice(0,16);
+          document.getElementById('takeModal').classList.add('active');
+      },
+      confirmTakeMed: async function() {
+          const id=parseInt(document.getElementById('takeMedId').value);
+          const time=document.getElementById('takeTime').value;
+          const note=document.getElementById('takeNote').value;
+          
+          const m = this.data.meds.find(x=>x.id===id);
+          if(m) {
+              if(m.stock > 0) m.stock--; // Stock reduzieren
+              this.data.medHistory.unshift({ id:Date.now(), medName:m.name, dose:m.dose, date:time, note:note });
+              await this.save();
+              this.renderMedList(); this.renderMedHistory(); this.closeTakeModal();
+          }
+      },
+      closeTakeModal: function() { document.getElementById('takeModal').classList.remove('active'); },
+
+      /* EMERGENCY */
+      saveProfile: async function(e) { e.preventDefault(); const p=this.data.profile; p.name=document.getElementById('profName').value; p.birth=document.getElementById('profBirth').value; p.blood=document.getElementById('profBlood').value; p.height=document.getElementById('profHeight').value; p.allergies=document.getElementById('profAllergies').value; await this.save(); this.renderProfile(); this.renderDashboard(); alert("Gespeichert"); },
+      addContact: async function() { const n=prompt("Name"); if(n) { const t=prompt("Tel"); if(t) { this.data.profile.contacts.push({name:n,tel:t}); await this.save(); this.renderProfile(); } } },
+
+      /* EXPORT */
+      exportPDF: function() { const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.text("MediGuard Report",14,20); const rows=this.data.vitals.map(v=>[v.date.replace('T',' '), v.type, `${v.val1}/${v.val2||''}`, (v.tags||[]).join(', ')]); doc.autoTable({startY:30,head:[['Datum','Typ','Wert','Tags']],body:rows}); doc.save("Report.pdf"); },
+      exportExcel: function() { const wb=XLSX.utils.book_new(); const ws=XLSX.utils.json_to_sheet(this.data.vitals.map(v=>({Datum:v.date, Typ:v.type, Wert1:v.val1, Wert2:v.val2, Tags:(v.tags||[]).join(', '), Notiz:v.note}))); XLSX.utils.book_append_sheet(wb,ws,"Data"); XLSX.writeFile(wb,"Data.xlsx"); },
+      backupJSON: function() { const raw=localStorage.getItem(DB_KEY); const b=new Blob([raw],{type:"application/json"}); const l=document.createElement('a'); l.download="Backup_Encrypted.json"; l.href=URL.createObjectURL(b); l.click(); },
+      importJSON: function(input) { const f=input.files[0]; if(!f) return; const r=new FileReader(); r.onload=e=>{ if(confirm("Überschreiben?")) { localStorage.setItem(DB_KEY, e.target.result); location.reload(); } }; r.readAsText(f); },
+
+      /* RENDER */
+      renderAll: function() { this.renderVitals(); this.renderMedList(); this.renderMedHistory(); this.renderMedDbList(); this.renderMedSelect(); this.renderProfile(); this.renderDashboard(); },
+      
+      renderDashboard: function() {
+        const bp = this.data.vitals.find(v=>v.type==='bp');
+        const w = this.data.vitals.find(v=>v.type==='weight');
+        const ca = document.getElementById('coachArea'); ca.innerHTML='';
+        
+        if(bp) {
+            let color='val-success', txt='Optimal', msg='Alles gut.';
+            if(bp.val1>140||bp.val2>90) { color='val-warning'; txt='Erhöht'; msg='Beobachten.'; }
+            if(bp.val1>160||bp.val2>100) { color='val-danger'; txt='Hoch'; msg='Arzt fragen.'; }
+            
+            document.getElementById('dashLastBP').innerHTML = `${bp.val1}/${bp.val2}`;
+            document.getElementById('dashLastBP').className = color;
+            ca.innerHTML = `<div class="card coach-card" style="border-color:var(--${color.split('-')[1]})"><h3 style="margin:0">${txt}</h3><div class="text-muted">${msg}</div></div>`;
+        }
+        if(w) {
+             const h = parseFloat(this.data.profile.height);
+             const bmi = h ? (w.val1/((h/100)**2)).toFixed(1) : '?';
+             document.getElementById('dashLastWeight').innerHTML = `${w.val1}kg <br><small>BMI ${bmi}</small>`;
+        }
+      },
+
+      renderVitals: function() {
+          const l=document.getElementById('vitalsList'); if(!this.data.vitals.length) { l.innerHTML="<div class='text-muted' style='text-align:center'>Leer</div>"; return; }
+          l.innerHTML = this.data.vitals.map(v => {
+             const d = new Date(v.date);
+             let valStr = v.type==='bp' ? `${v.val1}/${v.val2} <small>P${v.val3}</small>` : `${v.val1} ${v.type==='weight'?'kg':'mg/dL'}`;
+             let tagsHtml = (v.tags||[]).map(t=>`<span style="font-size:0.7rem; background:rgba(255,255,255,0.1); padding:2px 5px; border-radius:4px; margin-right:4px;">${t}</span>`).join('');
+             return `
+             <div class="stat-row">
+                <div>
+                    <b>${valStr}</b> <span class="text-muted" style="font-size:0.8rem">${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+                    ${tagsHtml ? '<br>'+tagsHtml : ''}
+                    ${v.note ? `<br><i class="text-muted" style="font-size:0.8rem">"${v.note}"</i>` : ''}
+                </div>
+                <div>
+                    <button class="btn-icon" onclick="app.editVital(${v.id})"><i class="fas fa-pen"></i></button>
+                    <button class="btn-icon" style="color:var(--danger)" onclick="app.deleteVital(${v.id})"><i class="fas fa-trash"></i></button>
+                </div>
+             </div>`;
+          }).join('');
+      },
+
+      renderMedList: function() {
+          const l=document.getElementById('medicationList');
+          l.innerHTML = this.data.meds.map(m => `
+          <div class="card">
+            <div style="display:flex; justify-content:space-between;">
+                <div><b>${m.name}</b> <small>${m.dose}</small><br>Vorrat: ${m.stock} | ${m.times.join(', ')}</div>
+                <div>
+                    <button class="btn-icon" style="background:var(--primary); color:white" onclick="app.openTakeModal(${m.id})"><i class="fas fa-check"></i></button>
+                    <button class="btn-icon" onclick="app.editMed(${m.id})"><i class="fas fa-pen"></i></button>
+                    <button class="btn-icon" style="color:var(--danger)" onclick="app.deleteMed(${m.id})"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+          </div>`).join('');
+      },
+
+      renderMedHistory: function() {
+          const l=document.getElementById('medHistoryList'); if(!this.data.medHistory.length) {l.innerHTML="<div class='text-muted' style='text-align:center'>Leer</div>"; return;}
+          l.innerHTML = this.data.medHistory.slice(0,10).map(h => {
+              const d=new Date(h.date);
+              return `<div class="stat-row"><div><b>${h.medName}</b> (${h.dose})<br><small>${d.toLocaleDateString()} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</small> ${h.note?`<i>"${h.note}"</i>`:''}</div></div>`;
+          }).join('');
+      },
+
+      renderMedDbList: function() { document.getElementById('medDbList').innerHTML = this.data.medDatabase.map(n=>`<div style="padding:4px; border-bottom:1px solid #444">${n}</div>`).join(''); },
+      renderMedSelect: function() { document.getElementById('medSelect').innerHTML = '<option value="">Wählen...</option>' + this.data.medDatabase.map(n=>`<option value="${n}">${n}</option>`).join(''); },
+      
+      renderProfile: function() {
+          const p=this.data.profile;
+          document.getElementById('profName').value=p.name; document.getElementById('profBirth').value=p.birth; document.getElementById('profBlood').value=p.blood; document.getElementById('profHeight').value=p.height; document.getElementById('profAllergies').value=p.allergies;
+          document.getElementById('dispName').innerText=p.name||'-'; document.getElementById('dispBirth').innerText=p.birth||'-'; document.getElementById('dispBloodType').innerText=p.blood||'?'; document.getElementById('dispAllergies').innerText=p.allergies||'-';
+          document.getElementById('contactList').innerHTML = p.contacts.map(c=>`<div class="stat-row"><span>${c.name}</span><a href="tel:${c.tel}" class="btn btn-sm btn-primary"><i class="fas fa-phone"></i></a></div>`).join('');
+      },
+
+      renderChart: function() {
+          const ctx=document.getElementById('mainChart'); if(!ctx)return;
+          const d=this.data.vitals.filter(v=>v.type==='bp').sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(-7);
+          if(this.chartInstance)this.chartInstance.destroy();
+          const isDark = document.documentElement.getAttribute('data-theme')!=='light';
+          this.chartInstance = new Chart(ctx, {
+              type:'line',
+              data:{
+                  labels: d.map(x=>new Date(x.date).toLocaleDateString(undefined,{weekday:'short'})),
+                  datasets:[
+                      {label:'Sys',data:d.map(x=>x.val1),borderColor:'#0ea5e9',tension:0.3},
+                      {label:'Dia',data:d.map(x=>x.val2),borderColor:'#f43f5e',tension:0.3}
+                  ]
+              },
+              options:{
+                  responsive:true, maintainAspectRatio:false,
+                  scales:{ y:{suggestedMin:50,suggestedMax:160, grid:{color:isDark?'#334155':'#cbd5e1'}}, x:{display:false} }
+              }
+          });
+      }
+    };
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>
