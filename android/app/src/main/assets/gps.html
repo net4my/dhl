@@ -35,7 +35,14 @@
   .page.active{display:block;}
   #page-map.active{display:flex;flex-direction:column;padding:0;}
   .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
-  .section-title{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 2px 10px;display:flex;justify-content:space-between;align-items:center;}
+  .section-title{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 2px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  /* Einklappbare Karten */
+  .card.collapsible>.section-title{cursor:pointer;margin-bottom:0;user-select:none;justify-content:flex-start;}
+  .card.collapsible.open>.section-title{margin-bottom:11px;}
+  .card.collapsible>.card-body{display:none;}
+  .card.collapsible.open>.card-body{display:block;}
+  .section-title .chev{margin-left:auto;transition:transform .2s;color:var(--text-muted);font-size:.85rem;flex:none;}
+  .card.collapsible.open>.section-title .chev{transform:rotate(180deg);}
 
   .compass-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
   .compass{position:relative;width:210px;height:210px;}
@@ -121,6 +128,8 @@
   .nav{height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:flex;border-top:1px solid var(--border);background:var(--bg-card);}
   .nav button{flex:1;background:none;color:var(--text-muted);flex-direction:column;gap:2px;font-size:.56rem;font-weight:600;border-radius:0;padding:7px 0;}
   .nav button.sel{color:var(--primary);} .nav .ic{font-size:18px;line-height:1;}
+  .nav button.sel{position:relative;}
+  .nav button.sel::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:24px;height:3px;border-radius:0 0 4px 4px;background:var(--primary);}
   .hint{font-size:.68rem;color:var(--text-muted);text-align:center;margin-top:9px;line-height:1.5;}
 
   /* Overlay (QR / HUD) */
@@ -240,7 +249,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Koordinaten-Formate <span class="src-tag" id="ts">–</span></div>
         <div class="grid">
           <div class="metric full"><div class="label">DMS (Grad/Min/Sek)</div><div class="value mono" id="dms">--</div></div>
@@ -255,7 +264,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Himmel (Sonne &amp; Mond)</div>
         <div class="grid">
           <div class="metric"><div class="label">🌅 Sonnenaufgang</div><div class="value" id="sunrise">--</div></div>
@@ -265,7 +274,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Wetter am Standort <span class="src-tag">online</span></div>
         <div class="grid">
           <div class="metric"><div class="label">🌡️ Temperatur</div><div class="value"><span id="wxTemp">--</span> <span class="unit">°C</span></div></div>
@@ -421,7 +430,7 @@
           <div class="metric"><div class="label">🌐 Systeme</div><div class="value" id="satSys" style="font-size:.82rem">–</div></div>
         </div>
       </div>
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Signalstärke je Satellit</div>
         <div class="sat-bars" id="satBars"><div class="hint">Warte auf Satellitendaten…</div></div>
         <div class="legend">
@@ -459,7 +468,7 @@
         <button id="sosBtn" class="b-danger full-btn" style="font-size:1rem;padding:15px">🆘 SOS – Standort per SMS</button>
         <button id="shareBtn" class="b-success full-btn" style="margin-top:9px">↗ Standort teilen</button>
       </div>
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">🔋 Akku &amp; Laufzeit</div>
         <div class="grid">
           <div class="metric"><div class="label">Ladestand</div><div class="value"><span id="battPct">--</span> <span class="unit">%</span></div></div>
@@ -482,7 +491,7 @@
         <div class="hint" id="battOptHint" style="text-align:left;margin-top:8px">Verhindert, dass Android das Hintergrund-Tracking beendet.</div>
       </div>
 
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Nordreferenz</div>
         <div class="seg" id="northSeg">
           <button data-n="magnetic" class="sel">Magnetisch</button>
@@ -490,21 +499,21 @@
         </div>
         <div class="hint" id="declHint" style="margin-top:8px">Missweisung: –</div>
       </div>
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Einheiten</div>
         <div class="seg" id="unitSeg">
           <button data-u="metric" class="sel">Metrisch</button>
           <button data-u="imperial">Imperial</button>
         </div>
       </div>
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Darstellung &amp; Einstellungen</div>
         <div class="switch"><div><div class="t">Helles Design</div></div><div class="toggle" id="themeTgl"></div></div>
         <div class="switch"><div><div class="t">🔴 Nachtmodus (Rotlicht)</div><div class="d">Schont die Nachtsicht</div></div><div class="toggle" id="nightTgl"></div></div>
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Tabs &amp; Energie sparen</div>
         <div class="hint" style="text-align:left;margin-bottom:8px">Nicht benötigte Tabs ausschalten – spart Strom und macht die App übersichtlicher.</div>
         <div id="tabToggles"></div>
@@ -513,13 +522,13 @@
           <button id="tabsTrackOnly" class="b-warn">🍃 Nur Tracking</button>
         </div>
       </div>
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Hilfe &amp; Daten</div>
         <button id="helpOpenBtn" class="b-primary full-btn">❓ Hilfe &amp; Erste Schritte</button>
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.4 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.5 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -572,7 +581,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.4 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.5 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

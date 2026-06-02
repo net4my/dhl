@@ -1086,6 +1086,22 @@
   };
   buildTabToggles(); applyTabs();
 
+  // ================= Einklappbare Karten (Übersicht) =================
+  (function setupCollapse() {
+    var cards = document.querySelectorAll(".card.collapsible");
+    Array.prototype.forEach.call(cards, function (card) {
+      var title = card.querySelector(".section-title"); if (!title) return;
+      var body = document.createElement("div"); body.className = "card-body";
+      while (title.nextSibling) body.appendChild(title.nextSibling);
+      card.appendChild(body);
+      var key = "gg_col_" + title.textContent.replace(/[^a-zA-ZäöüÄÖÜ ]/g, "").trim().slice(0, 18);
+      var ch = document.createElement("span"); ch.className = "chev"; ch.textContent = "▾"; title.appendChild(ch);
+      var saved = LS.getItem(key);
+      card.classList.toggle("open", saved != null ? saved === "1" : !card.classList.contains("collapsed"));
+      title.addEventListener("click", function () { var o = !card.classList.contains("open"); card.classList.toggle("open", o); LS.setItem(key, o ? "1" : "0"); });
+    });
+  })();
+
   // ================= Start =================
   if (hasNative()) { setStatus("warn", "Initialisiere…"); try { window.Android.startLocation(); } catch (e) {} } else setStatus("", "Bereit – Tracking starten");
 })();
