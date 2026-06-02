@@ -52,8 +52,14 @@ jobs:
           path: android/GeoGuard.apk
           if-no-files-found: error
 
-      - name: Attach APK to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish APK as GitHub Release
+        if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0
+          name: GeoGuard v1.0
+          body: |
+            GeoGuard – GPS & Kompass.
+            Lade unten **GeoGuard.apk** herunter und installiere sie auf deinem Android-Gerät
+            (Installation aus unbekannten Quellen erlauben).
           files: android/GeoGuard.apk
