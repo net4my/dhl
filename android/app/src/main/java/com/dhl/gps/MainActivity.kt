@@ -69,7 +69,9 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private lateinit var locationManager: LocationManager
     private lateinit var sensorManager: SensorManager
     private var rotationSensor: Sensor? = null
+    private var magneticSensor: Sensor? = null
     private var gnssCallback: GnssStatus.Callback? = null
+    private var lastMagSent = 0L
 
     private val rotationMatrix = FloatArray(9)
     private val orientation = FloatArray(3)
@@ -89,6 +91,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
 
         with(webView.settings) {
             javaScriptEnabled = true
@@ -330,6 +333,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         if (!hasLocationPermission()) return
         requestProviderUpdates(true)
         rotationSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+        magneticSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
 
     private fun requestProviderUpdates(useLastKnown: Boolean) {
@@ -532,29 +536,50 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     // Kompass (SensorEventListener)
     // ---------------------------------------------------------------------
     override fun onSensorChanged(event: SensorEvent) {
-        if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
-        val now = System.currentTimeMillis()
-        if (now - lastHeadingSent < 80) return
-        lastHeadingSent = now
+        when (event.sensor.type) {
+            Sensor.TYPE_MAGNETIC_FIELD -> {
+                val now = System.currentTimeMillis()
+                if (now - lastMagSent < 300) return
+                lastMagSent = now
+                val x = event.values[0]; val y = event.values[1]; val z = event.values[2]
+                val uT = Math.sqrt((x * x + y * y + z * z).toDouble())
+                webView.evaluateJavascript("window.onNativeMagnetic && window.onNativeMagnetic($uT);", null)
+                return
+            }
+            Sensor.TYPE_ROTATION_VECTOR -> {
+                val now = System.currentTimeMillis()
+                if (now - lastHeadingSent < 80) return
+                lastHeadingSent = now
 
-        SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-        val rotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
-            display?.rotation ?: 0 else @Suppress("DEPRECATION") windowManager.defaultDisplay.rotation
-        val (axisX, axisY) = when (rotation) {
-            android.view.Surface.ROTATION_90 -> SensorManager.AXIS_Y to SensorManager.AXIS_MINUS_X
-            android.view.Surface.ROTATION_180 -> SensorManager.AXIS_MINUS_X to SensorManager.AXIS_MINUS_Y
-            android.view.Surface.ROTATION_270 -> SensorManager.AXIS_MINUS_Y to SensorManager.AXIS_X
-            else -> SensorManager.AXIS_X to SensorManager.AXIS_Y
+                SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                val rotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                    display?.rotation ?: 0 else @Suppress("DEPRECATION") windowManager.defaultDisplay.rotation
+                val (axisX, axisY) = when (rotation) {
+                    android.view.Surface.ROTATION_90 -> SensorManager.AXIS_Y to SensorManager.AXIS_MINUS_X
+                    android.view.Surface.ROTATION_180 -> SensorManager.AXIS_MINUS_X to SensorManager.AXIS_MINUS_Y
+                    android.view.Surface.ROTATION_270 -> SensorManager.AXIS_MINUS_Y to SensorManager.AXIS_X
+                    else -> SensorManager.AXIS_X to SensorManager.AXIS_Y
+                }
+                val remapped = FloatArray(9)
+                SensorManager.remapCoordinateSystem(rotationMatrix, axisX, axisY, remapped)
+                SensorManager.getOrientation(remapped, orientation)
+                var azimuth = Math.toDegrees(orientation[0].toDouble())
+                azimuth = (azimuth + 360.0) % 360.0
+                val pitch = Math.toDegrees(orientation[1].toDouble())
+                val roll = Math.toDegrees(orientation[2].toDouble())
+                webView.evaluateJavascript(
+                    "window.onNativeHeading && window.onNativeHeading($azimuth);" +
+                        "window.onNativeTilt && window.onNativeTilt($pitch,$roll);", null
+                )
+            }
         }
-        val remapped = FloatArray(9)
-        SensorManager.remapCoordinateSystem(rotationMatrix, axisX, axisY, remapped)
-        SensorManager.getOrientation(remapped, orientation)
-        var azimuth = Math.toDegrees(orientation[0].toDouble())
-        azimuth = (azimuth + 360.0) % 360.0
-        webView.evaluateJavascript("window.onNativeHeading && window.onNativeHeading($azimuth);", null)
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+        if (sensor?.type == Sensor.TYPE_ROTATION_VECTOR || sensor?.type == Sensor.TYPE_MAGNETIC_FIELD) {
+            webView.evaluateJavascript("window.onNativeCompassAccuracy && window.onNativeCompassAccuracy($accuracy);", null)
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()

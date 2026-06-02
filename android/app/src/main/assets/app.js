@@ -173,6 +173,23 @@
     updateNavArrow();
   }
 
+  // ===== Kompass-Instrumente (Status, Neigung, Magnetfeld) =====
+  window.onNativeTilt = function (pitch, roll) { showTilt(Number(pitch), Number(roll)); };
+  window.onNativeMagnetic = function (uT) { var v = Math.round(Number(uT)), el = $("magUt"); if (!el) return; el.textContent = v; el.style.color = (v >= 25 && v <= 65) ? "" : "var(--warning)"; };
+  window.onNativeCompassAccuracy = function (acc) {
+    var el = $("compAcc"); if (!el) return;
+    var m = ({ 3: ["Hoch", "var(--success)"], 2: ["Mittel", "var(--primary)"], 1: ["Niedrig – kalibrieren", "var(--warning)"], 0: ["Unzuverlässig – kalibrieren", "var(--danger)"] })[acc] || ["–", "var(--text-muted)"];
+    el.textContent = m[0]; el.style.color = m[1];
+  };
+  function showTilt(pitch, roll) {
+    if (pitch == null || isNaN(pitch)) return;
+    var t = $("tiltVal"); if (t) t.textContent = Math.round(pitch) + "° / " + Math.round(roll) + "°";
+    var b = $("levelBubble"); if (!b) return;
+    var x = Math.max(-18, Math.min(18, roll)), y = Math.max(-18, Math.min(18, pitch)), flat = Math.abs(pitch) < 2.5 && Math.abs(roll) < 2.5;
+    b.style.left = (50 + x * 1.6) + "%"; b.style.top = (50 + y * 1.6) + "%";
+    b.style.background = flat ? "var(--success)" : "var(--warning)"; b.style.boxShadow = "0 0 6px " + (flat ? "var(--success)" : "var(--warning)");
+  }
+
   // ================= Position =================
   var lastFix = null, lastRawHeading = null;
   function updateLocation(p) {
@@ -219,7 +236,7 @@
     enableWebCompass();
   }
   function enableWebCompass() {
-    function handler(e) { var h = null; if (e.webkitCompassHeading != null) h = e.webkitCompassHeading; else if (e.alpha != null) h = 360 - e.alpha; if (h != null) { usingWebSensor = true; lastRawHeading = h; updateHeading(h, e.webkitCompassHeading != null ? "iOS-Kompass" : "Orientierung"); } }
+    function handler(e) { var h = null; if (e.webkitCompassHeading != null) h = e.webkitCompassHeading; else if (e.alpha != null) h = 360 - e.alpha; if (h != null) { usingWebSensor = true; lastRawHeading = h; updateHeading(h, e.webkitCompassHeading != null ? "iOS-Kompass" : "Orientierung"); } if (e.beta != null) showTilt(e.beta, e.gamma || 0); }
     if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
       DeviceOrientationEvent.requestPermission().then(function (s) { if (s === "granted") window.addEventListener("deviceorientation", handler, true); }).catch(function () {});
     } else { window.addEventListener("deviceorientationabsolute", handler, true); window.addEventListener("deviceorientation", handler, true); }
@@ -842,6 +859,39 @@
     toast("Zurückgesetzt – App wird neu geladen…");
     setTimeout(function () { location.reload(); }, 800);
   };
+
+  // ================= Tabs an/aus (Energie sparen) =================
+  function loadTabsCfg() { try { return JSON.parse(LS.getItem("gg_tabs") || "{}"); } catch (e) { return {}; } }
+  function tabEnabled(t, cfg) { cfg = cfg || loadTabsCfg(); return cfg[t] !== false; }
+  function applyTabs() {
+    var cfg = loadTabsCfg();
+    Array.prototype.forEach.call(nav.children, function (b) {
+      var t = b.getAttribute("data-tab");
+      b.style.display = (t === "dash" || t === "more" || tabEnabled(t, cfg)) ? "" : "none";
+    });
+    var active = nav.querySelector("button.sel");
+    if (active && active.style.display === "none") switchTab("dash");
+  }
+  function buildTabToggles() {
+    var c = $("tabToggles"); if (!c) return; c.innerHTML = ""; var cfg = loadTabsCfg();
+    Array.prototype.forEach.call(nav.children, function (b) {
+      var t = b.getAttribute("data-tab"); if (t === "dash" || t === "more") return;
+      var row = document.createElement("div"); row.className = "switch";
+      row.innerHTML = '<div class="t">' + escapeHtml(b.textContent.trim()) + "</div>";
+      var tg = document.createElement("div"); tg.className = "toggle" + (tabEnabled(t, cfg) ? " on" : "");
+      tg.onclick = function () { var c2 = loadTabsCfg(); c2[t] = !(c2[t] !== false); LS.setItem("gg_tabs", JSON.stringify(c2)); this.classList.toggle("on"); applyTabs(); };
+      row.appendChild(tg); c.appendChild(row);
+    });
+  }
+  $("tabsAll").onclick = function () { LS.setItem("gg_tabs", "{}"); buildTabToggles(); applyTabs(); toast("Alle Tabs aktiv."); };
+  $("tabsTrackOnly").onclick = function () {
+    var cfg = {};
+    Array.prototype.forEach.call(nav.children, function (b) { var t = b.getAttribute("data-tab"); if (t === "dash" || t === "more") return; cfg[t] = (t === "map" || t === "tours" || t === "tracking"); });
+    LS.setItem("gg_tabs", JSON.stringify(cfg)); buildTabToggles(); applyTabs();
+    if (typeof applyPower === "function" && !powerSave) applyPower(true);
+    toast("🍃 Nur Tracking aktiv – Strom sparen.");
+  };
+  buildTabToggles(); applyTabs();
 
   // ================= Start =================
   if (hasNative()) { setStatus("warn", "Initialisiere…"); try { window.Android.startLocation(); } catch (e) {} } else setStatus("", "Bereit – Tracking starten");

@@ -56,6 +56,10 @@
   .hub{position:absolute;left:50%;top:50%;width:15px;height:15px;border-radius:50%;background:var(--text-main);transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--bg-soft);}
   .heading-deg{font-size:2.1rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
   .heading-card{font-size:.9rem;color:var(--primary);font-weight:700;letter-spacing:2px;}
+  .level{width:50px;height:50px;border-radius:50%;border:2px solid var(--border);position:relative;margin:2px auto 0;background:var(--bg-body);overflow:hidden;}
+  .level::before{content:"";position:absolute;left:50%;top:6px;bottom:6px;width:1px;transform:translateX(-50%);background:var(--border);}
+  .level::after{content:"";position:absolute;top:50%;left:6px;right:6px;height:1px;transform:translateY(-50%);background:var(--border);}
+  .level-bubble{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--success);left:50%;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 6px var(--success);transition:left .12s,top .12s,background .2s;}
 
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
   .metric{background:var(--bg-soft);border:1px solid var(--border);border-radius:13px;padding:10px;}
@@ -184,6 +188,12 @@
             <div class="heading-card" id="hdgCard">RICHTUNG</div>
             <div class="hint" id="hdgSource">Sensor: –</div>
           </div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <div class="metric"><div class="label">🎯 Kompass-Status</div><div class="value" id="compAcc" style="font-size:.86rem">–</div></div>
+          <div class="metric"><div class="label">🧲 Magnetfeld</div><div class="value"><span id="magUt">--</span> <span class="unit">µT</span></div></div>
+          <div class="metric"><div class="label">📐 Neigung</div><div class="value" id="tiltVal" style="font-size:.86rem">–</div></div>
+          <div class="metric"><div class="label">⚖️ Wasserwaage</div><div class="value"><div id="level" class="level"><div id="levelBubble" class="level-bubble"></div></div></div></div>
         </div>
       </div>
 
@@ -450,12 +460,21 @@
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
       <div class="card">
+        <div class="section-title">Tabs &amp; Energie sparen</div>
+        <div class="hint" style="text-align:left;margin-bottom:8px">Nicht benötigte Tabs ausschalten – spart Strom und macht die App übersichtlicher.</div>
+        <div id="tabToggles"></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button id="tabsAll" class="b-soft">Alle an</button>
+          <button id="tabsTrackOnly" class="b-warn">🍃 Nur Tracking</button>
+        </div>
+      </div>
+      <div class="card">
         <div class="section-title">Hilfe &amp; Daten</div>
         <button id="helpOpenBtn" class="b-primary full-btn">❓ Hilfe &amp; Erste Schritte</button>
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v1.9 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.0 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -508,7 +527,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v1.9 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.0 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

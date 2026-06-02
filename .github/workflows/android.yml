@@ -66,17 +66,16 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9
-          name: GeoPilot v1.9
+          tag_name: v2.0
+          name: GeoPilot v2.0
           body: |
-            GeoPilot – jetzt mit Android Auto.
+            GeoPilot – professioneller Kompass & anpassbare Tabs.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v1.9: **Android-Auto-Unterstützung** – GeoPilot zeigt auf dem
-            Auto-Display Live-Position, Tempo, Kurs und das aktive Ziel (Entfernung &
-            Richtung). Das in der Handy-App gesetzte Ziel erscheint automatisch im Auto.
+            Neu in v2.0: **Profi-Kompass** mit Kalibrier-/Genauigkeitsstatus,
+            **Wasserwaage** (Neigung), **Magnetfeldstärke** inkl. Störungswarnung und
+            präziser Richtung. Außerdem: **Tabs einzeln an/aus** schaltbar (Mehr →
+            Tabs & Energie) inkl. Preset „Nur Tracking" zum Stromsparen.
 
-            Hinweis zum Testen: Android Auto zeigt seitlich installierte Apps nur, wenn
-            in der Android-Auto-App der **Entwicklermodus** aktiv ist (Einstellungen →
-            „Unbekannte Quellen zulassen"). Die App-ID bleibt gleich – Update läuft normal.
+            (v1.9 brachte Android Auto.) Die App-ID bleibt gleich – Update läuft normal.
           files: android/GeoPilot.apk
