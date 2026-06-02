@@ -168,6 +168,16 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         @JavascriptInterface
         fun notify(title: String, text: String) = runOnUiThread { doNotify(title, text) }
 
+        /** Aktives Ziel für die Android-Auto-Anzeige speichern. */
+        @JavascriptInterface
+        fun setCarTarget(lat: Double, lon: Double, name: String) {
+            getSharedPreferences("geopilot_car", Context.MODE_PRIVATE).edit()
+                .putFloat("lat", lat.toFloat())
+                .putFloat("lon", lon.toFloat())
+                .putString("name", if (name.isBlank()) "Ziel" else name)
+                .apply()
+        }
+
         /** GPS-Aktualisierungsintervall ändern (Energiesparen). */
         @JavascriptInterface
         fun setLocationInterval(ms: Int) = runOnUiThread {

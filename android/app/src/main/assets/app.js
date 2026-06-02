@@ -477,6 +477,7 @@
     target = { lat: lat, lon: lon, name: name || null }; LS.setItem("gg_target", JSON.stringify(target)); geoAlerted = false;
     $("navTarget").textContent = (name ? name + " · " : "") + lat.toFixed(5) + ", " + lon.toFixed(5);
     if (map) { var ll = [lat, lon]; if (!targetMarker) targetMarker = L.marker(ll).addTo(map); else targetMarker.setLatLng(ll); }
+    if (hasNative()) { try { window.Android.setCarTarget(lat, lon, name || "Ziel"); } catch (e) {} }
     updateNavArrow();
   }
   function relDir(rel) { rel = (rel + 360) % 360; if (rel < 22 || rel >= 338) return "geradeaus"; if (rel < 68) return "leicht rechts"; if (rel < 112) return "rechts"; if (rel < 158) return "scharf rechts"; if (rel < 202) return "zurück"; if (rel < 248) return "scharf links"; if (rel < 292) return "links"; return "leicht links"; }

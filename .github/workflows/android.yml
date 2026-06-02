@@ -66,16 +66,17 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.8
-          name: GeoPilot v1.8
+          tag_name: v1.9
+          name: GeoPilot v1.9
           body: |
-            GeoPilot – GPS, Navigation, echtes Flugradar & mehr (vormals GeoGuard).
+            GeoPilot – jetzt mit Android Auto.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v1.8: Flugradar mit **echten ADS-B-Live-Daten** (airplanes.live +
-            OpenSky) – Rufzeichen, Kennzeichen, Flugzeugtyp, Höhe, Tempo, Steig-/Sinkrate,
-            Squawk inkl. Notfall-Hervorhebung, Entfernung & Verfolgen einzelner Flüge.
-            Außerdem: neuer Name **GeoPilot** und neues App-Icon.
+            Neu in v1.9: **Android-Auto-Unterstützung** – GeoPilot zeigt auf dem
+            Auto-Display Live-Position, Tempo, Kurs und das aktive Ziel (Entfernung &
+            Richtung). Das in der Handy-App gesetzte Ziel erscheint automatisch im Auto.
 
-            Hinweis: Die App-ID bleibt gleich – ein Update über v1.2+ funktioniert normal.
+            Hinweis zum Testen: Android Auto zeigt seitlich installierte Apps nur, wenn
+            in der Android-Auto-App der **Entwicklermodus** aktiv ist (Einstellungen →
+            „Unbekannte Quellen zulassen"). Die App-ID bleibt gleich – Update läuft normal.
           files: android/GeoPilot.apk
