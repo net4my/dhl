@@ -142,6 +142,14 @@
   #page-flug.active{display:flex;flex-direction:column;padding:0;}
   #flugMap{height:54%;width:100%;background:#0b1220;}
   #flugListWrap{flex:1;overflow-y:auto;padding:12px;}
+  /* Tracking-Tab */
+  #page-tracking.active{display:flex;flex-direction:column;padding:0;}
+  #trackMap{height:38%;width:100%;background:#0b1220;}
+  #trackWrap{flex:1;overflow-y:auto;padding:12px;}
+  .big-stat{text-align:center;padding:4px 0 2px;}
+  .bs-speed{font-size:3rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--success);}
+  .bs-unit{font-size:1rem;color:var(--text-muted);font-weight:700;}
+  .bs-sub{font-size:.8rem;color:var(--text-muted);margin-top:2px;}
   /* Toast */
   #toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);transform:translateX(-50%) translateY(20px);z-index:3000;max-width:88%;background:#0b1220ee;color:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:11px 16px;font-size:.86rem;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;text-align:center;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -267,16 +275,11 @@
       <div style="position:relative;flex:1;display:flex">
         <div id="map"></div>
         <div class="map-overlay">
-          <div class="chip"><span class="k">Strecke</span><span id="trkDist">0,00 km</span></div>
-          <div class="chip"><span class="k">Dauer</span><span id="trkTime">00:00</span></div>
-          <div class="chip"><span class="k">Ø / Max</span><span id="trkSpd">– / –</span></div>
-          <div class="chip"><span class="k">Kacheln</span><span id="tileCount">0</span></div>
+          <div class="chip"><span class="k">Offline-Kacheln</span><span id="tileCount">0</span></div>
         </div>
-        <div class="map-controls">
-          <button id="recBtn" class="b-success">⏺ Rec</button>
-          <button id="centerBtn" class="b-soft">🎯 Mitte</button>
-          <button id="dlBtn" class="b-primary">⬇ Offline</button>
-          <button id="exportBtn" class="b-warn">⬇ GPX</button>
+        <div class="map-controls" style="grid-template-columns:1fr 1fr">
+          <button id="centerBtn" class="b-soft">🎯 Auf mich zentrieren</button>
+          <button id="dlBtn" class="b-primary">⬇ Offline speichern</button>
         </div>
       </div>
     </div>
@@ -348,27 +351,47 @@
       </div>
     </div>
 
-    <!-- TOUREN -->
-    <div class="page" id="page-tours">
-      <div class="card">
-        <div class="section-title">Aktuelle Tour</div>
-        <div class="grid">
-          <div class="metric"><div class="label">Strecke</div><div class="value"><span id="tcDist">--</span></div></div>
-          <div class="metric"><div class="label">Bewegungszeit</div><div class="value" id="tcMove">--</div></div>
-          <div class="metric"><div class="label">⬆ Aufstieg</div><div class="value"><span id="tcUp">--</span> <span class="unit" id="upU">m</span></div></div>
-          <div class="metric"><div class="label">⬇ Abstieg</div><div class="value"><span id="tcDown">--</span> <span class="unit" id="downU">m</span></div></div>
+    <!-- TRACKING -->
+    <div class="page" id="page-tracking">
+      <div id="trackMap"></div>
+      <div id="trackWrap">
+        <div class="big-stat">
+          <div class="bs-speed"><span id="tkSpeed">0</span> <span class="bs-unit" id="tkSpeedU">km/h</span></div>
+          <div class="bs-sub" id="tkState">Bereit – Aufzeichnung starten</div>
         </div>
-        <div class="label" style="margin:12px 2px 6px;font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Höhenprofil</div>
-        <canvas class="profile" id="profile" width="600" height="130"></canvas>
-        <div class="btn-row" style="margin-top:10px">
+        <div class="btn-row3" style="margin:6px 0 12px">
+          <button id="recBtn" class="b-success">⏺ Start</button>
+          <button id="recStopBtn" class="b-danger">⏹ Reset</button>
+          <button id="centerBtn2" class="b-soft">🎯 Mitte</button>
+        </div>
+        <div class="card">
+          <div class="section-title">Live-Daten (echte GPS-Werte)</div>
+          <div class="grid">
+            <div class="metric"><div class="label">📏 Strecke</div><div class="value" id="trkDist">0,00 km</div></div>
+            <div class="metric"><div class="label">⏱ Dauer</div><div class="value" id="trkTime">00:00</div></div>
+            <div class="metric"><div class="label">🚶 Bewegungszeit</div><div class="value" id="tcMove">--</div></div>
+            <div class="metric"><div class="label">📈 Ø / Max</div><div class="value" id="trkSpd" style="font-size:.92rem">– / –</div></div>
+            <div class="metric"><div class="label">⛰️ Höhe</div><div class="value"><span id="tkAlt">--</span> <span class="unit" id="tkAltU">m</span></div></div>
+            <div class="metric"><div class="label">🎯 Genauigkeit</div><div class="value"><span id="tkAcc">--</span> <span class="unit">m</span></div></div>
+            <div class="metric"><div class="label">⬆ Aufstieg</div><div class="value"><span id="tcUp">--</span> <span class="unit" id="upU">m</span></div></div>
+            <div class="metric"><div class="label">⬇ Abstieg</div><div class="value"><span id="tcDown">--</span> <span class="unit" id="downU">m</span></div></div>
+            <div class="metric full"><div class="label">📍 Position</div><div class="value mono" id="tkCoord" style="font-size:.9rem">--</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-title">Höhenprofil</div>
+          <canvas class="profile" id="profile" width="600" height="130"></canvas>
+        </div>
+        <div class="btn-row">
           <button id="saveTourBtn" class="b-primary">💾 Tour speichern</button>
-          <button id="importBtn" class="b-soft">📂 GPX importieren</button>
+          <button id="exportBtn" class="b-warn">⬇ GPX export</button>
         </div>
+        <button id="importBtn" class="b-soft full-btn" style="margin-top:9px">📂 GPX importieren</button>
         <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
-      </div>
-      <div class="card">
-        <div class="section-title">Gespeicherte Touren</div>
-        <div id="tourList"><div class="hint">Noch keine Touren gespeichert.</div></div>
+        <div class="card" style="margin-top:12px">
+          <div class="section-title">Gespeicherte Touren</div>
+          <div id="tourList"><div class="hint">Noch keine Touren gespeichert.</div></div>
+        </div>
       </div>
     </div>
 
@@ -474,7 +497,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.0 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.1 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -482,7 +505,7 @@
     <button data-tab="dash" class="sel"><span class="ic">🧭</span>Dashboard</button>
     <button data-tab="map"><span class="ic">🗺️</span>Karte</button>
     <button data-tab="nav"><span class="ic">🎯</span>Ziel</button>
-    <button data-tab="tours"><span class="ic">📈</span>Touren</button>
+    <button data-tab="tracking"><span class="ic">📍</span>Tracking</button>
     <button data-tab="sat"><span class="ic">🛰️</span>Sat</button>
     <button data-tab="flug"><span class="ic">✈️</span>Flug</button>
     <button data-tab="more"><span class="ic">⚙️</span>Mehr</button>
@@ -516,9 +539,9 @@
       <h3>Die Tabs</h3>
       <ul>
         <li><b>🧭 Dashboard</b> – Kompass, GPS-Daten, Koordinaten (DMS/UTM/MGRS/Plus Code), Genauigkeit, Sonne/Mond, Wetter.</li>
-        <li><b>🗺️ Karte</b> – Live-Position, Track aufzeichnen, GPX-Export, Offline-Karten herunterladen.</li>
+        <li><b>🗺️ Karte</b> – Live-Position, Navigationsroute, Offline-Karten herunterladen.</li>
         <li><b>🎯 Ziel</b> – Adress-Suche, Navigation (Auto/Fuß/Rad), Wegpunkte, Ankunfts-Alarm, Sprachhinweise.</li>
-        <li><b>📈 Touren</b> – aufgezeichnete Touren, Höhenprofil, GPX-Import, Trip-Computer.</li>
+        <li><b>📍 Tracking</b> – große Live-Werte, eigene Karte, Aufzeichnung, Höhenprofil, Touren speichern, GPX-Im-/Export.</li>
         <li><b>🛰️ Sat</b> – Satelliten/GNSS-Status (Anzahl, Signal, Systeme).</li>
         <li><b>✈️ Flug</b> – Live-Flugzeuge in der Umgebung mit Liste.</li>
         <li><b>⚙️ Mehr</b> – Akku &amp; Laufzeit, Einheiten, Nordreferenz, Design/Nachtmodus, Notfall-SOS.</li>
@@ -527,7 +550,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.0 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.1 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

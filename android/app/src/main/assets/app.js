@@ -218,6 +218,7 @@
     updateSky(p.lat, p.lon);
     onMapLocation(p); recordPoint(p); updateNavArrow(); checkGeofence();
     maybeWeather(p.lat, p.lon); routeProgress();
+    updateTrackLive(p); updateTrackMap(p);
   }
 
   // ================= Native Bridge =================
@@ -281,9 +282,9 @@
   nav.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return; var tab = b.getAttribute("data-tab");
     Array.prototype.forEach.call(nav.children, function (c) { c.classList.toggle("sel", c === b); });
-    ["dash", "map", "nav", "tours", "sat", "flug", "more"].forEach(function (t) { $("page-" + t).classList.toggle("active", t === tab); });
+    ["dash", "map", "nav", "tracking", "sat", "flug", "more"].forEach(function (t) { $("page-" + t).classList.toggle("active", t === tab); });
     if (tab === "map") ensureMap();
-    if (tab === "tours") drawProfile();
+    if (tab === "tracking") { openTrack(); drawProfile(); }
     if (tab === "flug") openFlug(); else pauseFlug();
   });
   function switchTab(tab) { var b = nav.querySelector('[data-tab="' + tab + '"]'); if (b) b.click(); }
@@ -373,6 +374,7 @@
     if (prev) trackDist += haversine(prev.lat, prev.lon, p.lat, p.lon);
     track.push({ lat: p.lat, lon: p.lon, alt: p.alt, t: p.time || Date.now() });
     if (trackLine) trackLine.addLatLng([p.lat, p.lon]);
+    if (trackLine2) trackLine2.addLatLng([p.lat, p.lon]);
     refreshTrackStats(); drawProfile();
   }
   function refreshTrackStats() {
@@ -386,11 +388,19 @@
   $("recBtn").onclick = function () {
     recording = !recording; var b = $("recBtn");
     if (recording) {
-      if (track.length === 0) { trackDist = 0; trackStart = Date.now(); maxSpeed = 0; if (trackLine) trackLine.setLatLngs([]); }
-      b.textContent = "⏸ Pause"; b.className = "b-danger"; recTimer = setInterval(refreshTrackStats, 1000);
-      startTracking();
-    } else { b.textContent = "⏺ Rec"; b.className = "b-success"; if (recTimer) { clearInterval(recTimer); recTimer = null; } }
+      if (track.length === 0) { trackDist = 0; trackStart = Date.now(); maxSpeed = 0; if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]); }
+      b.textContent = "⏸ Pause"; b.className = "b-warn"; recTimer = setInterval(refreshTrackStats, 1000);
+      $("tkState").textContent = "● Aufzeichnung läuft"; startTracking();
+    } else { b.textContent = "⏺ Start"; b.className = "b-success"; if (recTimer) { clearInterval(recTimer); recTimer = null; } $("tkState").textContent = "Pausiert"; }
   };
+  $("recStopBtn").onclick = function () {
+    recording = false; if (recTimer) { clearInterval(recTimer); recTimer = null; }
+    track = []; trackDist = 0; trackStart = 0; maxSpeed = 0; profilePts = null;
+    if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]);
+    $("recBtn").textContent = "⏺ Start"; $("recBtn").className = "b-success";
+    refreshTrackStats(); drawProfile(); $("tkState").textContent = "Zurückgesetzt"; toast("Aufzeichnung zurückgesetzt.");
+  };
+  $("centerBtn2").onclick = function () { trackFollow = true; if (trackMap && lastFix) trackMap.setView([lastFix.lat, lastFix.lon], 16); };
   function buildGpx(pts, name) {
     var g = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GeoGuard" xmlns="http://www.topografix.com/GPX/1/1">\n<trk><name>' + (name || "GeoGuard") + '</name><trkseg>\n';
     pts.forEach(function (pt) { g += '<trkpt lat="' + pt.lat + '" lon="' + pt.lon + '">' + (pt.alt != null && !isNaN(pt.alt) ? "<ele>" + pt.alt + "</ele>" : "") + "<time>" + new Date(pt.t).toISOString() + "</time></trkpt>\n"; });
@@ -402,6 +412,34 @@
     if (hasNative()) { try { window.Android.saveText(name, "application/gpx+xml", gpx); return; } catch (e) {} }
     var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([gpx], { type: "application/gpx+xml" })); a.download = name; a.click(); toast("GPX exportiert.");
   };
+
+  // ================= Tracking-Tab (eigene Karte + Live-Werte) =================
+  var trackMap = null, trackLine2 = null, meMarker3 = null, accCircle2 = null, trackFollow = true;
+  function ensureTrackMap() {
+    if (trackMap || typeof L === "undefined") { if (trackMap) setTimeout(function () { trackMap.invalidateSize(); }, 50); return; }
+    var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
+    trackMap = L.map("trackMap", { zoomControl: true, attributionControl: false }).setView(c, lastFix ? 15 : 5);
+    new OfflineLayer(TILE_URL, { maxZoom: 19 }).addTo(trackMap);
+    trackLine2 = L.polyline(track.map(function (p) { return [p.lat, p.lon]; }), { color: "#10b981", weight: 5, opacity: .9 }).addTo(trackMap);
+    trackMap.on("dragstart", function () { trackFollow = false; });
+    if (lastFix) updateTrackMap(lastFix);
+    setTimeout(function () { trackMap.invalidateSize(); }, 60);
+  }
+  function openTrack() { ensureTrackMap(); refreshTrackStats(); if (lastFix) updateTrackLive(lastFix); }
+  function updateTrackMap(p) {
+    if (!trackMap) return; var ll = [p.lat, p.lon];
+    if (!meMarker3) { meMarker3 = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 2, fillColor: "#10b981", fillOpacity: 1 }).addTo(trackMap); accCircle2 = L.circle(ll, { radius: p.acc || 0, color: "#10b981", weight: 1, fillOpacity: .08 }).addTo(trackMap); }
+    else { meMarker3.setLatLng(ll); accCircle2.setLatLng(ll).setRadius(p.acc || 0); }
+    if (trackFollow) trackMap.setView(ll, Math.max(trackMap.getZoom(), 15));
+  }
+  function updateTrackLive(p) {
+    var sp = $("tkSpeed"); if (sp) sp.textContent = fmtSpeed(p.speed) === "--" ? "0" : fmtSpeed(p.speed);
+    if ($("tkSpeedU")) $("tkSpeedU").textContent = isImp() ? "mph" : "km/h";
+    if ($("tkAlt")) $("tkAlt").textContent = fmtAlt(p.alt);
+    if ($("tkAltU")) $("tkAltU").textContent = isImp() ? "ft" : "m";
+    if ($("tkAcc")) $("tkAcc").textContent = (p.acc != null && !isNaN(p.acc)) ? Math.round(p.acc) : "--";
+    if ($("tkCoord")) $("tkCoord").textContent = p.lat.toFixed(6) + ", " + p.lon.toFixed(6);
+  }
 
   // ================= Trip-Computer + Höhenprofil =================
   function trackStats(pts) {
@@ -415,8 +453,7 @@
     return { dist: dist, up: up, down: down, moveSec: moveSec };
   }
   function updateTrip() {
-    var s = trackStats(track), d = fmtDist(s.dist), mm = Math.floor(s.moveSec / 60), ss = Math.floor(s.moveSec % 60);
-    $("tcDist").textContent = d.v + " " + d.u;
+    var s = trackStats(track), mm = Math.floor(s.moveSec / 60), ss = Math.floor(s.moveSec % 60);
     $("tcMove").textContent = (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss;
     $("tcUp").textContent = fmtAlt(s.up); $("tcDown").textContent = fmtAlt(s.down);
   }
@@ -476,16 +513,16 @@
     });
   }
   function viewTour(tr) {
-    profilePts = tr.pts; switchTab("tours"); drawProfile();
+    profilePts = tr.pts; switchTab("tracking"); drawProfile();
     var s = trackStats(tr.pts), d = fmtDist(s.dist), mm = Math.floor(s.moveSec / 60), ss = Math.floor(s.moveSec % 60);
-    $("tcDist").textContent = d.v + " " + d.u; $("tcMove").textContent = (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss; $("tcUp").textContent = fmtAlt(s.up); $("tcDown").textContent = fmtAlt(s.down);
-    ensureMap();
+    $("trkDist").textContent = d.v + " " + d.u; $("tcMove").textContent = (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss; $("tcUp").textContent = fmtAlt(s.up); $("tcDown").textContent = fmtAlt(s.down);
+    ensureTrackMap();
     setTimeout(function () {
-      if (!map) return; if (viewLine) map.removeLayer(viewLine);
-      viewLine = L.polyline(tr.pts.map(function (p) { return [p.lat, p.lon]; }), { color: "#f43f5e", weight: 4 }).addTo(map);
-      followMe = false; map.fitBounds(viewLine.getBounds(), { padding: [30, 30] });
+      if (!trackMap) return; if (viewLine) trackMap.removeLayer(viewLine);
+      viewLine = L.polyline(tr.pts.map(function (p) { return [p.lat, p.lon]; }), { color: "#f43f5e", weight: 4 }).addTo(trackMap);
+      trackFollow = false; trackMap.fitBounds(viewLine.getBounds(), { padding: [30, 30] });
       toast("Tour „" + tr.name + "“ auf der Karte.");
-    }, 120);
+    }, 140);
   }
 
   // ================= Navigation + Wegpunkte =================
@@ -886,7 +923,7 @@
   $("tabsAll").onclick = function () { LS.setItem("gg_tabs", "{}"); buildTabToggles(); applyTabs(); toast("Alle Tabs aktiv."); };
   $("tabsTrackOnly").onclick = function () {
     var cfg = {};
-    Array.prototype.forEach.call(nav.children, function (b) { var t = b.getAttribute("data-tab"); if (t === "dash" || t === "more") return; cfg[t] = (t === "map" || t === "tours" || t === "tracking"); });
+    Array.prototype.forEach.call(nav.children, function (b) { var t = b.getAttribute("data-tab"); if (t === "dash" || t === "more") return; cfg[t] = (t === "tracking"); });
     LS.setItem("gg_tabs", JSON.stringify(cfg)); buildTabToggles(); applyTabs();
     if (typeof applyPower === "function" && !powerSave) applyPower(true);
     toast("🍃 Nur Tracking aktiv – Strom sparen.");

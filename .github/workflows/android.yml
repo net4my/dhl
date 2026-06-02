@@ -66,16 +66,16 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0
-          name: GeoPilot v2.0
+          tag_name: v2.1
+          name: GeoPilot v2.1
           body: |
-            GeoPilot – professioneller Kompass & anpassbare Tabs.
+            GeoPilot – neuer großer Tracking-Tab.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v2.0: **Profi-Kompass** mit Kalibrier-/Genauigkeitsstatus,
-            **Wasserwaage** (Neigung), **Magnetfeldstärke** inkl. Störungswarnung und
-            präziser Richtung. Außerdem: **Tabs einzeln an/aus** schaltbar (Mehr →
-            Tabs & Energie) inkl. Preset „Nur Tracking" zum Stromsparen.
+            Neu in v2.1: eigener **Tracking-Tab** mit großer Tempo-Anzeige, eigener
+            Karte mit Live-Track, allen genauen Echtdaten (Strecke, Dauer, Bewegungszeit,
+            Ø/Max, Höhe, Genauigkeit, Auf-/Abstieg, Position), Höhenprofil, Aufzeichnung
+            mit Start/Pause/Reset, Tour speichern und GPX-Im-/Export.
 
-            (v1.9 brachte Android Auto.) Die App-ID bleibt gleich – Update läuft normal.
+            (v2.0: Profi-Kompass + Tabs an/aus. v1.9: Android Auto.) App-ID unverändert.
           files: android/GeoPilot.apk
