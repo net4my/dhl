@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.GeomagneticField
 import android.hardware.Sensor
+import android.location.Geocoder
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
@@ -41,7 +42,11 @@ import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * GeoGuard – GPS, Kompass, Karte, Navigation und GNSS-Status.
@@ -66,6 +71,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private var lastHeadingSent = 0L
     private var pendingStart = false
     private var tts: TextToSpeech? = null
+    private val io: ExecutorService = Executors.newCachedThreadPool()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -154,6 +160,62 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
         @JavascriptInterface
         fun notify(title: String, text: String) = runOnUiThread { doNotify(title, text) }
+
+        /** Server-seitiger HTTP-GET (umgeht CORS). Antwort via window.onHttp(id,status,body). */
+        @JavascriptInterface
+        fun httpGet(url: String, id: String) {
+            io.execute {
+                var status = 0
+                var body = ""
+                try {
+                    val conn = URL(url).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 20000
+                    conn.setRequestProperty("User-Agent", "GeoGuard/1.4 (Android)")
+                    conn.setRequestProperty("Accept", "application/json")
+                    status = conn.responseCode
+                    val stream = if (status in 200..299) conn.inputStream else conn.errorStream
+                    body = stream?.bufferedReader()?.use { it.readText() } ?: ""
+                    conn.disconnect()
+                } catch (e: Exception) {
+                    body = e.message ?: "network error"
+                }
+                val idJs = JSONObject.quote(id)
+                val bodyJs = JSONObject.quote(body)
+                runOnUiThread {
+                    webView.evaluateJavascript("window.onHttp && window.onHttp($idJs, $status, $bodyJs);", null)
+                }
+            }
+        }
+
+        /** Adresse -> Koordinaten über den System-Geocoder. Antwort via window.onGeocode(id,array). */
+        @JavascriptInterface
+        fun geocode(query: String, id: String) {
+            io.execute {
+                val arr = JSONArray()
+                try {
+                    if (Geocoder.isPresent()) {
+                        val gc = Geocoder(this@MainActivity, Locale.getDefault())
+                        @Suppress("DEPRECATION")
+                        val results = gc.getFromLocationName(query, 6)
+                        results?.forEach { a ->
+                            val line = a.getAddressLine(0)
+                            val name = line ?: listOfNotNull(a.featureName, a.locality, a.countryName).joinToString(", ")
+                            arr.put(JSONObject().apply {
+                                put("name", name)
+                                put("lat", a.latitude)
+                                put("lon", a.longitude)
+                            })
+                        }
+                    }
+                } catch (e: Exception) {
+                }
+                val idJs = JSONObject.quote(id)
+                runOnUiThread {
+                    webView.evaluateJavascript("window.onGeocode && window.onGeocode($idJs, $arr);", null)
+                }
+            }
+        }
 
         @JavascriptInterface
         fun saveText(filename: String, mime: String, content: String) = runOnUiThread {
@@ -394,6 +456,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         super.onDestroy()
         stopUpdates()
         tts?.shutdown()
+        io.shutdownNow()
         webView.destroy()
     }
 

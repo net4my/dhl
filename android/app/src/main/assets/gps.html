@@ -199,6 +199,16 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="section-title">Wetter am Standort <span class="src-tag">online</span></div>
+        <div class="grid">
+          <div class="metric"><div class="label">🌡️ Temperatur</div><div class="value"><span id="wxTemp">--</span> <span class="unit">°C</span></div></div>
+          <div class="metric"><div class="label">🌬️ Wind</div><div class="value"><span id="wxWind">--</span> <span class="unit">km/h</span></div></div>
+          <div class="metric"><div class="label">☁️ Lage</div><div class="value" id="wxDesc" style="font-size:.88rem">--</div></div>
+          <div class="metric"><div class="label">💧 Feuchte / 🌧️ Regen</div><div class="value" id="wxHum" style="font-size:.88rem">--</div></div>
+        </div>
+      </div>
+
       <div class="btn-row">
         <button id="startBtn" class="b-primary">▶︎ Tracking starten</button>
         <button id="stopBtn" class="b-danger">■ Stoppen</button>
@@ -212,11 +222,13 @@
     <div class="page" id="page-map">
       <div style="position:relative;flex:1;display:flex">
         <div id="map"></div>
+        <button id="flugBtn" class="b-soft" style="position:absolute;top:8px;right:8px;z-index:600;width:auto;padding:8px 11px;font-size:.8rem">✈ Flugradar</button>
         <div class="map-overlay">
           <div class="chip"><span class="k">Strecke</span><span id="trkDist">0,00 km</span></div>
           <div class="chip"><span class="k">Dauer</span><span id="trkTime">00:00</span></div>
           <div class="chip"><span class="k">Ø / Max</span><span id="trkSpd">– / –</span></div>
-          <div class="chip"><span class="k">Offline-Kacheln</span><span id="tileCount">0</span></div>
+          <div class="chip"><span class="k">Kacheln</span><span id="tileCount">0</span></div>
+          <div class="chip"><span class="k">✈ Flüge</span><span id="flugCount">–</span></div>
         </div>
         <div class="map-controls">
           <button id="recBtn" class="b-success">⏺ Rec</button>
@@ -238,6 +250,29 @@
           <div class="metric full"><div class="label">🎯 Ziel</div><div class="value" id="navTarget" style="font-size:.84rem">Kein Ziel gesetzt</div></div>
         </div>
       </div>
+      <div class="card">
+        <div class="section-title">Adresse / Ort suchen <span class="src-tag">online</span></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="addrInput" placeholder="z. B. Brandenburger Tor, Berlin" />
+          <button id="addrBtn" class="b-primary" style="width:auto;padding:0 16px">🔍</button>
+        </div>
+        <div id="addrResults"></div>
+        <div class="hint" style="margin-top:6px;text-align:left">Tipp: Auf der Karte <b>tippen</b> setzt das Ziel, <b>langes Drücken</b> legt einen Wegpunkt an.</div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Straßen-Route (Auto) <span class="src-tag">online</span></div>
+        <div class="grid">
+          <div class="metric"><div class="label">🛣 Strecke</div><div class="value" id="rtDist">--</div></div>
+          <div class="metric"><div class="label">⏱ Fahrzeit</div><div class="value" id="rtTime">--</div></div>
+        </div>
+        <div class="btn-row" style="margin-top:10px">
+          <button id="routeBtn" class="b-primary">🛣 Route berechnen</button>
+          <button id="routeClearBtn" class="b-soft">✖ Route löschen</button>
+        </div>
+        <div id="steps" style="margin-top:10px"></div>
+      </div>
+
       <div class="card">
         <div class="section-title">Ziel festlegen</div>
         <label class="fld">Breite (Lat)</label>
@@ -340,7 +375,7 @@
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
-      <div class="hint">GeoGuard v1.3 · offline · ohne Tracking/Werbung</div>
+      <div class="hint">GeoGuard v1.4 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
