@@ -723,10 +723,12 @@
   $("navStopBtn").onclick = stopNav;
   $("routeClearBtn").onclick = function () { stopNav(); if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; routeShape = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
 
-  // ================= Flugradar (eigener Tab – echte ADS-B-Daten) =================
-  var flugMap = null, flugLayer = null, flugTimer = null, flugInterval = 15000, flugAutoOn = true, flugVisible = false, followFlugHex = null;
+  // ================= Flugradar (FR24-Stil – echte ADS-B-Daten) =================
+  var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 15000, flugAutoOn = true, flugVisible = false;
+  var followFlugHex = null, lastPlanes = [], flugFilter = "all", flugQuery = "", trailPts = [], acCache = {}, routeCache = {}, detailHex = null;
   function isEmergency(sq) { return sq === "7500" || sq === "7600" || sq === "7700"; }
-  function planeIcon(track, emerg) { return L.divIcon({ className: "", html: '<div style="font-size:22px;line-height:1;transform:rotate(' + ((track || 0) - 45) + 'deg);filter:drop-shadow(0 0 ' + (emerg ? "5px #ef4444" : "2px #000") + ')">✈️</div>', iconSize: [24, 24], iconAnchor: [12, 12] }); }
+  function altColor(ft, emerg) { if (emerg) return "#ef4444"; if (ft == null) return "#94a3b8"; if (ft < 3000) return "#f59e0b"; if (ft < 10000) return "#fbbf24"; if (ft < 20000) return "#34d399"; if (ft < 30000) return "#38bdf8"; return "#818cf8"; }
+  function planeIcon(track, color, sel) { return L.divIcon({ className: "", html: '<svg width="24" height="24" viewBox="0 0 24 24" style="transform:rotate(' + (track || 0) + 'deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))"><path fill="' + color + '" stroke="' + (sel ? "#fff" : "rgba(0,0,0,.4)") + '" stroke-width="' + (sel ? 1 : 0.5) + '" d="M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>', iconSize: [24, 24], iconAnchor: [12, 12] }); }
   function ensureFlugMap() {
     if (flugMap || typeof L === "undefined") { if (flugMap) setTimeout(function () { flugMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
@@ -753,43 +755,107 @@
   }
   function openSkyFallback(b) {
     httpJson("https://opensky-network.org/api/states/all?lamin=" + b.getSouth().toFixed(4) + "&lomin=" + b.getWest().toFixed(4) + "&lamax=" + b.getNorth().toFixed(4) + "&lomax=" + b.getEast().toFixed(4)).then(function (j) {
-      if (!j || !j.states) { if (flugLayer) flugLayer.clearLayers(); $("flugCount").textContent = "0"; $("flugList").innerHTML = '<div class="hint">Keine Daten (oder offline).</div>'; return; }
+      if (!j || !j.states) { lastPlanes = []; drawFlights(); return; }
       renderFlights(j.states.map(function (s) { var altM = (s[13] != null ? s[13] : s[7]); return { hex: s[0], flight: (s[1] || "").trim() || s[0], reg: "", type: "", lat: s[6], lon: s[5], onground: s[8], alt: (altM != null ? Math.round(altM * 3.28084) : null), gsKmh: (s[9] != null ? Math.round(s[9] * 3.6) : null), trk: s[10], squawk: s[14] || "", rate: (s[11] != null ? Math.round(s[11] * 196.85) : null) }; }));
     });
   }
+  function passFilter(p) {
+    if (flugQuery) { var q = flugQuery.toLowerCase(); if ((p.flight || "").toLowerCase().indexOf(q) < 0 && (p.reg || "").toLowerCase().indexOf(q) < 0) return false; }
+    if (flugFilter === "high" && !(p.alt != null && p.alt >= 10000)) return false;
+    if (flugFilter === "emerg" && !isEmergency(p.squawk)) return false;
+    return true;
+  }
   function renderFlights(planes) {
+    lastPlanes = planes.filter(function (p) { return p.lat != null && p.lon != null && !p.onground; });
+    lastPlanes.forEach(function (p) { p.distKm = lastFix ? haversine(lastFix.lat, lastFix.lon, p.lat, p.lon) / 1000 : null; });
+    drawFlights();
+    if (detailHex) renderDetail();
+  }
+  function drawFlights() {
+    if (!flugMap) return;
     if (flugLayer) flugLayer.clearLayers();
-    var list = $("flugList");
-    planes = planes.filter(function (p) { return p.lat != null && p.lon != null && !p.onground; });
-    $("flugCount").textContent = planes.length;
+    var planes = lastPlanes.filter(passFilter);
+    $("flugCount").textContent = planes.length + (lastPlanes.length !== planes.length ? " / " + lastPlanes.length : "");
     planes.forEach(function (p) {
-      p.distKm = lastFix ? haversine(lastFix.lat, lastFix.lon, p.lat, p.lon) / 1000 : null;
-      var emerg = isEmergency(p.squawk);
-      var m = L.marker([p.lat, p.lon], { icon: planeIcon(p.trk, emerg) }).addTo(flugLayer);
-      m.bindPopup("<b>✈ " + escapeHtml(p.flight) + "</b>" + (p.reg ? " (" + escapeHtml(p.reg) + ")" : "") +
-        (p.type ? "<br>Typ: " + escapeHtml(p.type) : "") +
-        "<br>Höhe: " + (p.alt != null ? p.alt.toLocaleString("de-DE") + " ft" : "–") +
-        "<br>Tempo: " + (p.gsKmh != null ? p.gsKmh + " km/h" : "–") +
-        "<br>Kurs: " + (p.trk != null ? Math.round(p.trk) + "°" : "–") +
-        (p.rate != null && Math.abs(p.rate) > 50 ? "<br>" + (p.rate > 0 ? "⬆ steigt " : "⬇ sinkt ") + Math.abs(p.rate) + " ft/min" : "") +
-        (p.squawk ? "<br>Squawk: " + p.squawk : "") +
-        (p.distKm != null ? "<br>Entfernung: " + p.distKm.toFixed(1) + " km" : "") +
-        (emerg ? '<br><b style="color:#ef4444">⚠ NOTFALL-CODE</b>' : ""));
-      if (followFlugHex && p.hex === followFlugHex) { flugMap.panTo([p.lat, p.lon]); m.openPopup(); }
+      var emerg = isEmergency(p.squawk), sel = (followFlugHex === p.hex);
+      var m = L.marker([p.lat, p.lon], { icon: planeIcon(p.trk, altColor(p.alt, emerg), sel) }).addTo(flugLayer);
+      m.on("click", (function (hex) { return function () { openDetail(hex); }; })(p.hex));
     });
+    if (followFlugHex) {
+      var f = lastPlanes.filter(function (p) { return p.hex === followFlugHex; })[0];
+      if (f) { flugMap.panTo([f.lat, f.lon]); trailPts.push([f.lat, f.lon]); if (trailPts.length > 80) trailPts.shift(); if (!flugTrail) flugTrail = L.polyline(trailPts, { color: "#38bdf8", weight: 3, opacity: .85, dashArray: "5 5" }).addTo(flugMap); else flugTrail.setLatLngs(trailPts); }
+    }
+    var list = $("flugList");
     if (lastFix) planes.sort(function (a, b) { return (a.distKm || 1e9) - (b.distKm || 1e9); });
     else planes.sort(function (a, b) { return (b.alt || 0) - (a.alt || 0); });
-    if (!planes.length) { list.innerHTML = '<div class="hint">Keine Flugzeuge im Bereich. Karte verschieben oder rauszoomen.</div>'; return; }
+    if (!planes.length) { list.innerHTML = '<div class="hint">Keine Flüge (Filter/Bereich prüfen).</div>'; return; }
     list.innerHTML = "";
-    planes.slice(0, 50).forEach(function (p) {
-      var emerg = isEmergency(p.squawk), row = document.createElement("div"); row.className = "wp-item";
+    planes.slice(0, 60).forEach(function (p) {
+      var emerg = isEmergency(p.squawk), route = routeCache[(p.flight || "").trim()];
+      var row = document.createElement("div"); row.className = "wp-item"; row.style.cursor = "pointer";
       if (emerg) row.style.borderColor = "var(--danger)"; if (followFlugHex === p.hex) row.style.borderColor = "var(--primary)";
-      row.innerHTML = '<div style="flex:1"><div class="nm">✈ ' + escapeHtml(p.flight) + (p.reg ? ' <span style="color:var(--text-muted);font-weight:400">' + escapeHtml(p.reg) + '</span>' : "") + (emerg ? ' <span style="color:var(--danger)">⚠</span>' : "") + '</div><div class="co">' + (p.type ? escapeHtml(p.type) + " · " : "") + (p.alt != null ? p.alt.toLocaleString("de-DE") + " ft" : "–") + " · " + (p.gsKmh != null ? p.gsKmh + " km/h" : "–") + (p.distKm != null ? " · " + p.distKm.toFixed(0) + " km" : "") + '</div></div>';
-      var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "🎯";
-      go.onclick = function () { if (followFlugHex === p.hex) { followFlugHex = null; toast("Verfolgung beendet."); } else { followFlugHex = p.hex; flugMap.setView([p.lat, p.lon], Math.max(flugMap.getZoom(), 9)); toast("Folge ✈ " + p.flight); } };
-      row.appendChild(go); list.appendChild(row);
+      var routeTxt = (route && route.from) ? (route.from + " → " + route.to) : "";
+      row.innerHTML = '<div style="flex:1"><div class="nm">✈ ' + escapeHtml(p.flight) + (p.reg ? ' <span style="color:var(--text-muted);font-weight:400">' + escapeHtml(p.reg) + '</span>' : "") + (emerg ? ' <span style="color:var(--danger)">⚠</span>' : "") + '</div><div class="co">' + (routeTxt ? escapeHtml(routeTxt) + " · " : "") + (p.alt != null ? p.alt.toLocaleString("de-DE") + " ft" : "–") + " · " + (p.gsKmh != null ? p.gsKmh + " km/h" : "–") + (p.distKm != null ? " · " + p.distKm.toFixed(0) + " km" : "") + '</div></div><div style="color:var(--text-muted)">›</div>';
+      row.onclick = function () { openDetail(p.hex); };
+      list.appendChild(row);
     });
   }
+  function planeByHex(hex) { return lastPlanes.filter(function (p) { return p.hex === hex; })[0]; }
+  function openDetail(hex) { detailHex = hex; $("flugDetail").classList.add("show"); renderDetail(); fetchDetailData(hex); }
+  function closeDetail() { detailHex = null; $("flugDetail").classList.remove("show"); }
+  function fetchDetailData(hex) {
+    if (!acCache[hex]) {
+      httpJson("https://api.adsbdb.com/v0/aircraft/" + encodeURIComponent(hex)).then(function (j) {
+        var a = j && j.response && j.response.aircraft;
+        acCache[hex] = a ? { type: a.type, manu: a.manufacturer, reg: a.registration, owner: a.registered_owner, country: a.registered_owner_country_name, photo: a.url_photo_thumbnail || a.url_photo } : {};
+        if (detailHex === hex) renderDetail();
+      });
+    }
+    var p = planeByHex(hex), cs = (p && p.flight || "").trim();
+    if (cs && !routeCache[cs]) {
+      httpJson("https://api.adsbdb.com/v0/callsign/" + encodeURIComponent(cs)).then(function (j) {
+        var r = j && j.response && j.response.flightroute;
+        routeCache[cs] = r ? { airline: r.airline ? r.airline.name : "", from: r.origin ? r.origin.iata_code : "", fromName: r.origin ? r.origin.municipality : "", to: r.destination ? r.destination.iata_code : "", toName: r.destination ? r.destination.municipality : "" } : {};
+        if (detailHex === hex) renderDetail();
+      });
+    }
+  }
+  function renderDetail() {
+    var hex = detailHex; if (!hex) return;
+    var p = planeByHex(hex) || {}, ac = acCache[hex] || {}, route = routeCache[(p.flight || "").trim()] || {}, emerg = isEmergency(p.squawk);
+    function cell(k, v) { return '<div class="fd-cell"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>'; }
+    var html = "";
+    if (ac.photo) html += '<img class="fd-photo" src="' + ac.photo + '" alt="" onerror="this.style.display=\'none\'"/>';
+    html += '<div class="fd-title">✈ ' + escapeHtml(p.flight || hex) + (emerg ? ' <span style="color:var(--danger)">⚠ NOTFALL</span>' : "") + '</div>';
+    if (route.airline) html += '<div style="color:var(--text-muted);font-weight:600;text-align:center">' + escapeHtml(route.airline) + '</div>';
+    if (route.from || route.to) html += '<div class="fd-route"><span>' + escapeHtml(route.from || "???") + '</span><span style="color:var(--primary)">✈</span><span>' + escapeHtml(route.to || "???") + '</span></div>';
+    if (route.fromName || route.toName) html += '<div style="text-align:center;color:var(--text-muted);font-size:.8rem;margin-top:-4px">' + escapeHtml(route.fromName || "") + ' → ' + escapeHtml(route.toName || "") + '</div>';
+    html += '<div class="fd-grid">';
+    html += cell("Höhe", p.alt != null ? p.alt.toLocaleString("de-DE") + " ft" : "–");
+    html += cell("Tempo", p.gsKmh != null ? p.gsKmh + " km/h" : "–");
+    html += cell("Kurs", p.trk != null ? Math.round(p.trk) + "°" : "–");
+    html += cell("Vertikal", p.rate != null ? (p.rate > 0 ? "⬆ " : p.rate < 0 ? "⬇ " : "") + Math.abs(p.rate) + " ft/min" : "–");
+    html += cell("Squawk", (p.squawk || "–") + (emerg ? " ⚠" : ""));
+    html += cell("Entfernung", p.distKm != null ? p.distKm.toFixed(1) + " km" : "–");
+    html += cell("Kennzeichen", escapeHtml(ac.reg || p.reg || "–"));
+    html += cell("Typ", escapeHtml(ac.type || p.type || "–"));
+    if (ac.manu) html += cell("Hersteller", escapeHtml(ac.manu));
+    if (ac.owner) html += cell("Halter/Airline", escapeHtml(ac.owner));
+    html += '</div>';
+    html += '<div class="btn-row" style="margin-top:12px"><button id="fdFollow" class="b-primary">' + (followFlugHex === hex ? "⏹ Verfolgung stoppen" : "🎯 Verfolgen") + '</button><button id="fdCenter" class="b-soft">🗺 Auf Karte</button></div>';
+    if (!ac.reg && !route.from) html += '<div class="hint" style="margin-top:8px">Lade Flugzeug-/Routendaten…</div>';
+    $("flugDetBody").innerHTML = html;
+    $("fdFollow").onclick = function () {
+      if (followFlugHex === hex) followFlugHex = null;
+      else followFlugHex = hex;
+      trailPts = []; if (flugTrail) { flugMap.removeLayer(flugTrail); flugTrail = null; }
+      renderDetail(); drawFlights();
+    };
+    $("fdCenter").onclick = function () { if (p.lat) { closeDetail(); flugMap.setView([p.lat, p.lon], Math.max(flugMap.getZoom(), 10)); } };
+  }
+  $("flugDetClose").onclick = closeDetail;
+  $("flugSearch").addEventListener("input", function () { flugQuery = this.value.trim(); drawFlights(); });
+  Array.prototype.forEach.call($("flugFilter").children, function (b) { b.onclick = function () { flugFilter = b.getAttribute("data-f"); Array.prototype.forEach.call($("flugFilter").children, function (x) { x.classList.toggle("sel", x === b); }); drawFlights(); }; });
   $("flugRefresh").onclick = function () { loadFlights(); };
   $("flugAuto").onclick = function () { flugAutoOn = !flugAutoOn; this.textContent = "⏯ Auto-Refresh: " + (flugAutoOn ? "an" : "aus"); this.className = flugAutoOn ? "b-success" : "b-soft"; if (flugAutoOn) { if (flugVisible) { loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); } } else if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } };
 

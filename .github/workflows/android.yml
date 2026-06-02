@@ -66,16 +66,15 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.1
-          name: GeoPilot v2.1
+          tag_name: v2.2
+          name: GeoPilot v2.2
           body: |
-            GeoPilot – neuer großer Tracking-Tab.
+            GeoPilot – Flugradar im Flightradar24-Stil.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v2.1: eigener **Tracking-Tab** mit großer Tempo-Anzeige, eigener
-            Karte mit Live-Track, allen genauen Echtdaten (Strecke, Dauer, Bewegungszeit,
-            Ø/Max, Höhe, Genauigkeit, Auf-/Abstieg, Position), Höhenprofil, Aufzeichnung
-            mit Start/Pause/Reset, Tour speichern und GPX-Im-/Export.
-
-            (v2.0: Profi-Kompass + Tabs an/aus. v1.9: Android Auto.) App-ID unverändert.
+            Neu in v2.2: komplett überarbeitetes **Flugradar** mit echten ADS-B-Daten –
+            **Detailansicht** mit Flugzeug-Foto, **Flugroute von→nach**, Airline,
+            Flugzeugtyp/Hersteller/Halter (adsbdb), **Filter & Suche** (Rufzeichen/
+            Kennzeichen, Höhe, Notfälle), farbcodierte Flugzeug-Symbole nach Höhe,
+            **Verfolgen mit Flugspur** und Notfall-Hervorhebung.
           files: android/GeoPilot.apk
