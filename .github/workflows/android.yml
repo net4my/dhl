@@ -66,15 +66,14 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.2
-          name: GeoPilot v2.2
+          tag_name: v2.3
+          name: GeoPilot v2.3
           body: |
-            GeoPilot – Flugradar im Flightradar24-Stil.
+            GeoPilot – Navigation auf Vorbild-Niveau.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v2.2: komplett überarbeitetes **Flugradar** mit echten ADS-B-Daten –
-            **Detailansicht** mit Flugzeug-Foto, **Flugroute von→nach**, Airline,
-            Flugzeugtyp/Hersteller/Halter (adsbdb), **Filter & Suche** (Rufzeichen/
-            Kennzeichen, Höhe, Notfälle), farbcodierte Flugzeug-Symbole nach Höhe,
-            **Verfolgen mit Flugspur** und Notfall-Hervorhebung.
+            Neu in v2.3: überarbeitete **Navigation** – **Routen-Alternativen** zur Auswahl,
+            echte **Manöver-Pfeile** je Abbiegetyp, Straßennamen, **Ankunfts-Erkennung**
+            mit Ansage, „danach"-Vorschau im Banner und **Re-Zentrieren**-Knopf während
+            der Fahrt. (v2.2: Flugradar im FR24-Stil.)
           files: android/GeoPilot.apk

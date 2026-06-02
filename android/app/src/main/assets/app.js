@@ -632,6 +632,7 @@
 
   // ================= Navigation (Valhalla, mehrmodal) =================
   var routeLine = null, routeSteps = [], routeStepIdx = 0, routeShape = [], navActive = false, lastReroute = 0, pendingNavStart = false;
+  var routeOptions = [], routeOptIdx = 0, arrived = false;
   var navMode = LS.getItem("gg_mode") || "auto";
   Array.prototype.forEach.call($("modeSeg").children, function (b) { b.onclick = function () { navMode = b.getAttribute("data-m"); LS.setItem("gg_mode", navMode); Array.prototype.forEach.call($("modeSeg").children, function (x) { x.classList.toggle("sel", x === b); }); }; b.classList.toggle("sel", b.getAttribute("data-m") === navMode); });
   function decodePolyline(str, precision) {
@@ -645,52 +646,76 @@
     }
     return coords;
   }
-  function navArrowFor(instr) {
-    var s = (instr || "").toLowerCase();
-    if (s.indexOf("ziel") >= 0 || s.indexOf("angekommen") >= 0) return "🏁";
-    if (s.indexOf("kreisverkehr") >= 0) return "🔄";
-    if (s.indexOf("scharf links") >= 0) return "↰"; if (s.indexOf("scharf rechts") >= 0) return "↱";
-    if (s.indexOf("links") >= 0) return "⬅️"; if (s.indexOf("rechts") >= 0) return "➡️";
-    if (s.indexOf("wenden") >= 0 || s.indexOf("umkehr") >= 0) return "↩️";
+  function maneuverIcon(t) {
+    if (t == null) return "⬆️";
+    if (t === 4 || t === 5 || t === 6) return "🏁";
+    if (t === 1 || t === 2 || t === 3) return "▶️";
+    if (t === 26 || t === 27) return "🔄";
+    if (t === 12 || t === 13) return "↩️";
+    if (t === 9 || t === 18 || t === 23) return "↗️";
+    if (t === 10 || t === 20) return "➡️";
+    if (t === 11) return "↘️";
+    if (t === 14) return "↙️";
+    if (t === 15 || t === 21) return "⬅️";
+    if (t === 16 || t === 19 || t === 24) return "↖️";
+    if (t === 25 || t === 36 || t === 37) return "🔀";
+    if (t === 28 || t === 29) return "⛴️";
     return "⬆️";
   }
-  function fmtDur(secs) { var m = Math.round(secs / 60); if (m < 60) return m + " min"; return Math.floor(m / 60) + " h " + (m % 60) + " min"; }
+  function osrmIcon(mod) { return ({ left: "⬅️", right: "➡️", "slight left": "↖️", "slight right": "↗️", "sharp left": "↙️", "sharp right": "↘️", straight: "⬆️", uturn: "↩️" })[mod] || "⬆️"; }
+  function fmtDur(secs) { var m = Math.round(secs / 60); if (m < 1) return "< 1 min"; if (m < 60) return m + " min"; return Math.floor(m / 60) + " h " + (m % 60) + " min"; }
   function calcRoute() {
     if (!target || !lastFix) { toast("Erst Ziel und Position nötig."); return; }
     if (!needOnline()) { $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
     $("rtDist").textContent = "…"; $("rtTime").textContent = "…";
-    var body = { locations: [{ lat: lastFix.lat, lon: lastFix.lon }, { lat: target.lat, lon: target.lon }], costing: navMode, directions_options: { language: "de", units: "kilometers" } };
+    var body = { locations: [{ lat: lastFix.lat, lon: lastFix.lon }, { lat: target.lat, lon: target.lon }], costing: navMode, alternates: 2, directions_options: { language: "de", units: "kilometers" } };
     var url = "https://valhalla1.openstreetmap.de/route?json=" + encodeURIComponent(JSON.stringify(body));
     httpJson(url).then(function (j) {
       if (!j || !j.trip || !j.trip.legs || !j.trip.legs.length) { osrmFallback(); return; }
-      var leg = j.trip.legs[0];
-      routeShape = decodePolyline(leg.shape, 6);
-      routeSteps = (leg.maneuvers || []).map(function (m) { return { instr: m.instruction || "weiter", dist: (m.length || 0) * 1000, time: m.time || 0, loc: routeShape[m.begin_shape_index] || [lastFix.lat, lastFix.lon], _ann: false }; });
-      routeStepIdx = 0; showRoute((leg.summary.length || 0) * 1000, leg.summary.time || 0);
+      var trips = [j.trip].concat((j.alternates || []).map(function (a) { return a.trip; }).filter(Boolean));
+      routeOptions = trips.map(parseTrip);
+      selectRoute(0);
+      if (voiceOn) speak("Route berechnet. " + (Math.round(routeOptions[0].dist / 100) / 10) + " Kilometer, " + fmtDur(routeOptions[0].secs) + ".");
     });
+  }
+  function parseTrip(trip) {
+    var leg = trip.legs[0], shape = decodePolyline(leg.shape, 6);
+    var steps = (leg.maneuvers || []).map(function (m) { return { instr: m.instruction || "weiter", icon: maneuverIcon(m.type), street: (m.street_names || []).join(", "), dist: (m.length || 0) * 1000, time: m.time || 0, loc: shape[m.begin_shape_index] || [lastFix.lat, lastFix.lon], _ann: false }; });
+    return { dist: (leg.summary.length || 0) * 1000, secs: leg.summary.time || 0, shape: shape, steps: steps };
   }
   function osrmFallback() {
     if (navMode !== "auto") { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
     var url = "https://router.project-osrm.org/route/v1/driving/" + lastFix.lon + "," + lastFix.lat + ";" + target.lon + "," + target.lat + "?overview=full&geometries=geojson&steps=true";
     httpJson(url).then(function (j) {
       if (!j || j.code !== "Ok" || !j.routes || !j.routes.length) { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
-      var rt = j.routes[0]; routeShape = rt.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
-      var steps = (rt.legs && rt.legs[0] && rt.legs[0].steps) ? rt.legs[0].steps : [];
-      routeSteps = steps.map(function (s) { var mo = (s.maneuver && s.maneuver.modifier) || "", nm = s.name || ""; var dir = { left: "links", right: "rechts", "slight left": "leicht links", "slight right": "leicht rechts", "sharp left": "scharf links", "sharp right": "scharf rechts", straight: "geradeaus", uturn: "wenden" }[mo] || ""; return { instr: ("Weiter " + dir).trim() + (nm ? " auf " + nm : ""), dist: s.distance, time: s.duration, loc: [s.maneuver.location[1], s.maneuver.location[0]], _ann: false }; });
-      routeStepIdx = 0; showRoute(rt.distance, rt.duration);
+      var rt = j.routes[0], shape = rt.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
+      var st = (rt.legs && rt.legs[0] && rt.legs[0].steps) ? rt.legs[0].steps : [];
+      var steps = st.map(function (s) { var mo = (s.maneuver && s.maneuver.modifier) || "", nm = s.name || ""; var dir = { left: "links", right: "rechts", "slight left": "leicht links", "slight right": "leicht rechts", "sharp left": "scharf links", "sharp right": "scharf rechts", straight: "geradeaus", uturn: "wenden" }[mo] || ""; return { instr: ("Weiter " + dir).trim() + (nm ? " auf " + nm : ""), icon: osrmIcon(mo), street: nm, dist: s.distance, time: s.duration, loc: [s.maneuver.location[1], s.maneuver.location[0]], _ann: false }; });
+      routeOptions = [{ dist: rt.distance, secs: rt.duration, shape: shape, steps: steps }];
+      selectRoute(0);
     });
+  }
+  function selectRoute(idx) {
+    if (!routeOptions[idx]) return; routeOptIdx = idx; var o = routeOptions[idx];
+    routeShape = o.shape; routeSteps = o.steps; routeStepIdx = 0; arrived = false;
+    showRoute(o.dist, o.secs); renderRouteOptions();
+  }
+  function renderRouteOptions() {
+    var c = $("routeOpts"); if (!c) return;
+    if (routeOptions.length < 2) { c.innerHTML = ""; return; }
+    c.innerHTML = "";
+    routeOptions.forEach(function (o, i) { var d = fmtDist(o.dist), b = document.createElement("button"); b.className = (i === routeOptIdx ? "b-primary" : "b-soft"); b.style.cssText = "flex:1;flex-direction:column;gap:0;padding:8px"; b.innerHTML = '<span style="font-size:.95rem">' + fmtDur(o.secs) + '</span><span style="font-size:.68rem;opacity:.85">' + d.v + " " + d.u + (i === 0 ? " · schnellste" : "") + '</span>'; b.onclick = function () { selectRoute(i); toast("Route: " + fmtDur(o.secs)); }; c.appendChild(b); });
   }
   function showRoute(dist, secs) {
     var d = fmtDist(dist); $("rtDist").textContent = d.v + " " + d.u; $("rtTime").textContent = fmtDur(secs);
     ensureMap();
     setTimeout(function () { if (!map) return; if (routeLine) map.removeLayer(routeLine); routeLine = L.polyline(routeShape, { color: "#6366f1", weight: 6, opacity: .9 }).addTo(map); if (!navActive) { followMe = false; map.fitBounds(routeLine.getBounds(), { padding: [30, 30] }); } }, 100);
     renderSteps();
-    if (voiceOn) speak("Route berechnet. " + (Math.round(dist / 100) / 10) + " Kilometer, " + fmtDur(secs) + ".");
     if (pendingNavStart) { pendingNavStart = false; startNav(); }
   }
   function renderSteps() {
     var c = $("steps"); if (!routeSteps.length) { c.innerHTML = ""; return; } c.innerHTML = "";
-    routeSteps.forEach(function (s, i) { var d = fmtDist(s.dist), row = document.createElement("div"); row.className = "wp-item"; if (i === routeStepIdx) row.style.borderColor = "var(--primary)"; row.innerHTML = '<div style="flex:1"><div class="nm" style="font-size:.82rem">' + navArrowFor(s.instr) + " " + escapeHtml(s.instr) + '</div><div class="co">' + d.v + " " + d.u + '</div></div>'; c.appendChild(row); });
+    routeSteps.forEach(function (s, i) { var d = fmtDist(s.dist), row = document.createElement("div"); row.className = "wp-item"; if (i === routeStepIdx) row.style.borderColor = "var(--primary)"; row.innerHTML = '<div style="flex:1"><div class="nm" style="font-size:.82rem">' + (s.icon || "⬆️") + " " + escapeHtml(s.instr) + '</div><div class="co">' + d.v + " " + d.u + '</div></div>'; c.appendChild(row); });
   }
   function distToRoute(lat, lon) { var min = Infinity; for (var i = 0; i < routeShape.length; i += 2) { var dd = haversine(lat, lon, routeShape[i][0], routeShape[i][1]); if (dd < min) min = dd; } return min; }
   function remaining() {
@@ -705,22 +730,27 @@
     var s = routeSteps[routeStepIdx]; if (!s) return;
     var dToMan = haversine(lastFix.lat, lastFix.lon, s.loc[0], s.loc[1]);
     if (navActive) {
+      // Ankunft erkannt
+      if (target && !arrived && haversine(lastFix.lat, lastFix.lon, target.lat, target.lon) < 30) {
+        arrived = true; if (voiceOn) speak("Sie haben Ihr Ziel erreicht."); toast("🏁 Ziel erreicht!"); stopNav(); return;
+      }
       var eta = remaining(), ed = fmtDist(eta.dist), arr = new Date(Date.now() + eta.time * 1000);
-      var nxt = routeSteps[routeStepIdx + 1] || s;
-      $("nbArrow").textContent = navArrowFor(nxt.instr); $("nbInstr").textContent = nxt.instr;
-      var dd = fmtDist(dToMan); $("nbDist").textContent = "in " + dd.v + " " + dd.u;
+      var nxt = routeSteps[routeStepIdx + 1] || s, after = routeSteps[routeStepIdx + 2];
+      $("nbArrow").textContent = nxt.icon || "⬆️"; $("nbInstr").textContent = nxt.instr;
+      var dd = fmtDist(dToMan); $("nbDist").textContent = "in " + dd.v + " " + dd.u + (after ? "  ›  danach " + (after.icon || "") : "");
       $("nbEta").textContent = "Ankunft ~" + arr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " · noch " + ed.v + " " + ed.u + " · " + fmtDur(eta.time);
-      if (map) { followMe = true; map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16)); }
+      if (map && followMe) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16));
       if (routeShape.length && distToRoute(lastFix.lat, lastFix.lon) > 60 && Date.now() - lastReroute > 8000) { lastReroute = Date.now(); toast("Route wird neu berechnet…"); if (voiceOn) speak("Route wird neu berechnet."); calcRoute(); return; }
     }
     if (dToMan < 30 && routeStepIdx < routeSteps.length - 1) { routeStepIdx++; renderSteps(); var ns = routeSteps[routeStepIdx]; if (voiceOn && ns) speak(ns.instr); }
     else if (voiceOn && dToMan < 180 && !s._ann) { s._ann = true; var d2 = fmtDist(dToMan); speak("In " + d2.v + " " + (d2.u === "km" ? "Kilometern" : "Metern") + ": " + s.instr); }
   }
-  function startNav() { if (!routeSteps.length) { pendingNavStart = true; calcRoute(); return; } navActive = true; $("navBanner").classList.add("show"); $("navStartBtn").textContent = "⏹ Navigation läuft"; switchTab("map"); if (voiceOn) speak("Navigation gestartet."); routeProgress(); }
+  function startNav() { if (!routeSteps.length) { pendingNavStart = true; calcRoute(); return; } navActive = true; arrived = false; followMe = true; $("navBanner").classList.add("show"); $("navStartBtn").textContent = "⏹ Navigation läuft"; switchTab("map"); if (voiceOn) speak("Navigation gestartet."); routeProgress(); }
   function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Navigation starten"; }
   $("routeBtn").onclick = function () { calcRoute(); };
   $("navStartBtn").onclick = function () { if (navActive) stopNav(); else startNav(); };
   $("navStopBtn").onclick = stopNav;
+  if ($("navRecenter")) $("navRecenter").onclick = function () { followMe = true; if (map && lastFix) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16)); };
   $("routeClearBtn").onclick = function () { stopNav(); if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; routeShape = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
 
   // ================= Flugradar (FR24-Stil – echte ADS-B-Daten) =================
