@@ -138,12 +138,26 @@
   #page-flug.active{display:flex;flex-direction:column;padding:0;}
   #flugMap{height:54%;width:100%;background:#0b1220;}
   #flugListWrap{flex:1;overflow-y:auto;padding:12px;}
+  /* Toast */
+  #toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);transform:translateX(-50%) translateY(20px);z-index:3000;max-width:88%;background:#0b1220ee;color:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:11px 16px;font-size:.86rem;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;text-align:center;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* Hilfe */
+  #helpOverlay{align-items:stretch;justify-content:flex-start;}
+  .help-box{max-width:560px;width:100%;margin:0 auto;text-align:left;overflow-y:auto;max-height:100%;padding:8px 4px 30px;}
+  .help-box h2{font-size:1.2rem;margin:6px 0 2px;}
+  .help-box h3{font-size:.95rem;margin:16px 0 4px;color:var(--primary);}
+  .help-box p,.help-box li{font-size:.85rem;color:#cbd5e1;line-height:1.55;}
+  .help-box ul{padding-left:18px;margin:4px 0;}
+  .help-box .close{position:sticky;top:0;float:right;background:#334155;border-radius:10px;padding:8px 12px;font-size:.8rem;}
+  .conn{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:999px;margin-left:6px;}
+  .conn.on{background:#10b98133;color:#34d399;border:1px solid #10b98155;}
+  .conn.off{background:#ef444433;color:#f87171;border:1px solid #ef444455;}
 </style>
 </head>
 <body>
   <div class="topbar">
-    <div class="logo">🛰️</div>
-    <div class="title">GeoGuard</div>
+    <div class="logo" id="logoBtn" style="cursor:pointer">🛰️</div>
+    <div class="title">GeoGuard <span class="conn off" id="connTag">offline</span></div>
     <div class="status-pill" id="battTop" style="margin-left:auto"><span id="battIcon">🔋</span><span id="battTopPct">--%</span></div>
     <div class="status-pill" style="margin-left:8px"><span id="dot" class="dot"></span><span id="statusText">Bereit</span></div>
   </div>
@@ -435,7 +449,13 @@
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
-      <div class="hint">GeoGuard v1.6 · Karten offline · Live-Daten online</div>
+      <div class="card">
+        <div class="section-title">Hilfe &amp; Daten</div>
+        <button id="helpOpenBtn" class="b-primary full-btn">❓ Hilfe &amp; Erste Schritte</button>
+        <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
+        <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
+      </div>
+      <div class="hint">GeoGuard v1.7 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -461,6 +481,38 @@
     <div class="hud-sub"><span id="hudUnit">km/h</span> · <span id="hudHdg">–</span></div>
     <div class="closehint">Zum Schließen tippen</div>
   </div>
+
+  <!-- Hilfe Overlay -->
+  <div class="overlay" id="helpOverlay">
+    <div class="help-box">
+      <button class="close" id="helpClose">✖ Schließen</button>
+      <h2>🛰️ GeoGuard – Hilfe</h2>
+      <p>Deine App für Position, Richtung und Navigation. Kompass, Karten und Berechnungen funktionieren <b>offline</b>; Live-Funktionen brauchen Internet.</p>
+      <h3>Schnellstart</h3>
+      <ul>
+        <li><b>Tracking starten</b> (Dashboard) und Standort erlauben.</li>
+        <li>Ziel im Tab <b>Ziel</b> festlegen: Adresse suchen, auf der Karte tippen, oder Koordinaten eingeben.</li>
+        <li>Modus wählen (🚗/🚶/🚴) → <b>Route berechnen</b> → <b>Navigation starten</b>.</li>
+      </ul>
+      <h3>Die Tabs</h3>
+      <ul>
+        <li><b>🧭 Dashboard</b> – Kompass, GPS-Daten, Koordinaten (DMS/UTM/MGRS/Plus Code), Genauigkeit, Sonne/Mond, Wetter.</li>
+        <li><b>🗺️ Karte</b> – Live-Position, Track aufzeichnen, GPX-Export, Offline-Karten herunterladen.</li>
+        <li><b>🎯 Ziel</b> – Adress-Suche, Navigation (Auto/Fuß/Rad), Wegpunkte, Ankunfts-Alarm, Sprachhinweise.</li>
+        <li><b>📈 Touren</b> – aufgezeichnete Touren, Höhenprofil, GPX-Import, Trip-Computer.</li>
+        <li><b>🛰️ Sat</b> – Satelliten/GNSS-Status (Anzahl, Signal, Systeme).</li>
+        <li><b>✈️ Flug</b> – Live-Flugzeuge in der Umgebung mit Liste.</li>
+        <li><b>⚙️ Mehr</b> – Akku &amp; Laufzeit, Einheiten, Nordreferenz, Design/Nachtmodus, Notfall-SOS.</li>
+      </ul>
+      <h3>🔋 Damit der Akku durchhält</h3>
+      <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
+      <h3>🔒 Datenschutz</h3>
+      <p>GeoGuard speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
+      <p style="margin-top:14px;color:#64748b">GeoGuard v1.7 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+    </div>
+  </div>
+
+  <div id="toast"></div>
 
 <script src="app.js"></script>
 </body>

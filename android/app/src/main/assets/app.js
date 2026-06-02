@@ -4,7 +4,14 @@
   var $ = function (id) { return document.getElementById(id); };
   var LS = window.localStorage;
   function hasNative() { return typeof window.Android !== "undefined" && window.Android; }
-  function toast(msg) { if (hasNative()) { try { window.Android.toast(msg); return; } catch (e) {} } var h = $("hint"); if (h) h.innerHTML = msg; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = document.getElementById("toast"); if (!t) return;
+    t.innerHTML = msg; t.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+  function needOnline() { if (navigator.onLine === false) { toast("📡 Keine Internetverbindung – diese Funktion ist online."); return false; } return true; }
 
   // ================= Einheiten =================
   var units = LS.getItem("gg_units") || "metric";
@@ -286,9 +293,6 @@
   var map = null, meMarker = null, accCircle = null, trackLine = null, targetMarker = null, viewLine = null, followMe = true;
   var TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   function cacheTile(key, url) { if (!navigator.onLine) return; fetch(url).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) { if (b) idbPut("tiles", b, key); }).catch(function () {}); }
-  function defineLayer() {
-    return L.tileLayer(TILE_URL, { maxZoom: 19, createTile: undefined }).on("tileloadstart", function () {});
-  }
   var OfflineLayer = (typeof L !== "undefined") ? L.TileLayer.extend({
     createTile: function (coords, done) {
       var img = document.createElement("img"), self = this, key = coords.z + "/" + coords.x + "/" + coords.y;
@@ -546,6 +550,7 @@
   // ================= Adress-Suche / Geocoding =================
   function doSearch() {
     var q = $("addrInput").value.trim(); if (!q) return;
+    if (!needOnline()) { $("addrResults").innerHTML = '<div class="hint">📡 Offline – Adress-Suche braucht Internet.</div>'; return; }
     $("addrResults").innerHTML = '<div class="hint">Suche…</div>';
     nativeGeocode(q).then(function (arr) {
       if (arr && arr.length) { showAddrResults(arr); return; }
@@ -597,6 +602,7 @@
   function fmtDur(secs) { var m = Math.round(secs / 60); if (m < 60) return m + " min"; return Math.floor(m / 60) + " h " + (m % 60) + " min"; }
   function calcRoute() {
     if (!target || !lastFix) { toast("Erst Ziel und Position nötig."); return; }
+    if (!needOnline()) { $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
     $("rtDist").textContent = "…"; $("rtTime").textContent = "…";
     var body = { locations: [{ lat: lastFix.lat, lon: lastFix.lon }, { lat: target.lat, lon: target.lon }], costing: navMode, directions_options: { language: "de", units: "kilometers" } };
     var url = "https://valhalla1.openstreetmap.de/route?json=" + encodeURIComponent(JSON.stringify(body));
@@ -678,6 +684,7 @@
   function pauseFlug() { flugVisible = false; if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } }
   function loadFlights() {
     if (!flugMap) return;
+    if (navigator.onLine === false) { $("flugCount").textContent = "–"; $("flugList").innerHTML = '<div class="hint">📡 Offline – Flugradar braucht Internet.</div>'; return; }
     var b = flugMap.getBounds();
     var url = "https://opensky-network.org/api/states/all?lamin=" + b.getSouth().toFixed(4) + "&lomin=" + b.getWest().toFixed(4) + "&lamax=" + b.getNorth().toFixed(4) + "&lomax=" + b.getEast().toFixed(4);
     $("flugCount").textContent = "…";
@@ -705,6 +712,7 @@
     return m[code] || "–";
   }
   function maybeWeather(lat, lon) {
+    if (navigator.onLine === false) return;
     if (Date.now() - lastWeather < 600000) return; lastWeather = Date.now();
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat.toFixed(4) + "&longitude=" + lon.toFixed(4) + "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation";
     httpJson(url).then(function (j) {
@@ -779,6 +787,27 @@
   function updateOptStatus() { if (hasNative()) { try { var ig = window.Android.isIgnoringBattery(); $("battOptHint").textContent = ig ? "✅ GeoGuard ist von der Akku-Optimierung ausgenommen." : "⚠️ Noch nicht ausgenommen – Hintergrund-Tracking kann beendet werden."; } catch (e) {} } }
   updateOptStatus();
   if (!hasNative() && navigator.getBattery) { navigator.getBattery().then(function (bat) { function upd() { updateBattery({ pct: Math.round(bat.level * 100), charging: bat.charging, plugged: bat.charging ? "USB" : "–", temp: 0, volt: 0, health: "–", tech: "–" }); } upd(); bat.addEventListener("levelchange", upd); bat.addEventListener("chargingchange", upd); }); }
+
+  // ================= Verbindung, Hilfe, Reset =================
+  function updateConn() { var on = navigator.onLine !== false, tag = $("connTag"); if (tag) { tag.textContent = on ? "online" : "offline"; tag.className = "conn " + (on ? "on" : "off"); } return on; }
+  window.addEventListener("online", function () { updateConn(); toast("📡 Wieder online."); });
+  window.addEventListener("offline", function () { updateConn(); toast("📡 Offline – Live-Funktionen pausiert."); });
+  updateConn();
+
+  function openHelp() { $("helpOverlay").classList.add("show"); }
+  function closeHelp() { $("helpOverlay").classList.remove("show"); }
+  $("logoBtn").onclick = openHelp;
+  $("helpOpenBtn").onclick = openHelp;
+  $("helpClose").onclick = closeHelp;
+  if (!LS.getItem("gg_seen")) { LS.setItem("gg_seen", "1"); setTimeout(openHelp, 700); }
+
+  $("resetBtn").onclick = function () {
+    if (!window.confirm("Alle Wegpunkte, Touren und Einstellungen auf diesem Gerät löschen?")) return;
+    try { LS.clear(); } catch (e) {}
+    try { indexedDB.deleteDatabase("geoguard"); } catch (e) {}
+    toast("Zurückgesetzt – App wird neu geladen…");
+    setTimeout(function () { location.reload(); }, 800);
+  };
 
   // ================= Start =================
   if (hasNative()) { setStatus("warn", "Initialisiere…"); try { window.Android.startLocation(); } catch (e) {} } else setStatus("", "Bereit – Tracking starten");
