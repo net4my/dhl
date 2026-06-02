@@ -32,6 +32,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -40,7 +41,16 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew --no-daemon assembleDebug
+        run: |
+          n=0
+          until [ $n -ge 5 ]; do
+            ./gradlew --no-daemon assembleDebug && exit 0
+            n=$((n+1))
+            echo "::warning::Gradle build attempt $n failed (likely a transient download error), retrying in 15s…"
+            sleep 15
+          done
+          echo "::error::Gradle build failed after 5 attempts"
+          exit 1
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk GeoGuard.apk
