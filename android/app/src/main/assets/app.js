@@ -220,7 +220,15 @@
     updateSky(p.lat, p.lon);
     onMapLocation(p); recordPoint(p); updateNavArrow(); checkGeofence();
     maybeWeather(p.lat, p.lon); routeProgress();
-    updateTrackLive(p); updateTrackMap(p); maybeReverse(p.lat, p.lon); updateCompassMap(p);
+    updateTrackLive(p); updateTrackMap(p); maybeReverse(p.lat, p.lon); updateCompassMap(p); updateQuickTiles(p);
+  }
+  function updateQuickTiles(p) {
+    if ($("qSpeed")) $("qSpeed").textContent = (p.speed != null && !isNaN(p.speed)) ? fmtSpeed(p.speed) : "0";
+    if ($("qSpeedU")) $("qSpeedU").textContent = isImp() ? "mph" : "km/h";
+    if ($("qAlt")) $("qAlt").textContent = fmtAlt(p.alt);
+    if ($("qAltU")) $("qAltU").textContent = isImp() ? "ft" : "m";
+    if ($("qCourse")) $("qCourse").textContent = (p.bearing != null && !isNaN(p.bearing)) ? Math.round(p.bearing) : "--";
+    if ($("qAcc")) $("qAcc").textContent = (p.acc != null && !isNaN(p.acc)) ? Math.round(p.acc) : "--";
   }
 
   // ================= Native Bridge =================
@@ -1025,7 +1033,7 @@
 
   // ================= Einstellungen =================
   function applyTheme(t) { document.documentElement.setAttribute("data-theme", t); $("themeTgl").classList.toggle("on", t === "light"); $("nightTgl").classList.toggle("on", t === "night"); LS.setItem("gg_theme", t); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute("content", t === "night" ? "#000000" : t === "light" ? "#f1f5f9" : "#0f172a"); }
-  applyTheme(LS.getItem("gg_theme") || "dark");
+  applyTheme(LS.getItem("gg_theme") || "light");
   $("themeTgl").onclick = function () { applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light"); };
   $("nightTgl").onclick = function () { applyTheme(document.documentElement.getAttribute("data-theme") === "night" ? "dark" : "night"); };
 
@@ -1098,7 +1106,31 @@
   $("logoBtn").onclick = openHelp;
   $("helpOpenBtn").onclick = openHelp;
   $("helpClose").onclick = closeHelp;
-  if (!LS.getItem("gg_seen")) { LS.setItem("gg_seen", "1"); setTimeout(openHelp, 700); }
+
+  // ===== Onboarding-Tour =====
+  var tourSteps = [
+    { i: "🛰️", t: "Willkommen bei GeoPilot", x: "Dein All-in-One-Begleiter für GPS, Kompass, Navigation, Tracking und Live-Flugradar – das Meiste funktioniert auch offline." },
+    { i: "🧭", t: "Dashboard", x: "Kompass mit Live-Karte und Richtungspfeil, dazu Tempo, Höhe, Kurs und Genauigkeit auf einen Blick. Tippe auf eine Überschrift, um Details (Koordinaten, Himmel, Wetter) zu öffnen." },
+    { i: "🗺️", t: "Karte", x: "Deine Live-Position auf der Karte. Du kannst Kartenausschnitte herunterladen, um sie offline zu nutzen." },
+    { i: "🎯", t: "Ziel & Navigation", x: "Adresse suchen oder auf die Karte tippen, Modus wählen (🚗 Auto · 🚶 Fuß · 🚴 Rad) und losnavigieren – mit Sprachansagen, Alternativen und Ankunftszeit." },
+    { i: "📍", t: "Tracking", x: "Strecke aufzeichnen mit großen Live-Werten, Höhenprofil und GPX-Export. Deine Touren bleiben gespeichert." },
+    { i: "🛰️", t: "Satelliten", x: "GNSS-Status: sichtbare und genutzte Satelliten, Signalstärke und Systeme (GPS, Galileo, GLONASS …)." },
+    { i: "✈️", t: "Flugradar", x: "Echte Flugzeuge live in deiner Umgebung – mit Route von→nach, Foto, Höhe/Tempo und flüssiger Verfolgung." },
+    { i: "⚙️", t: "Mehr & Einstellungen", x: "Akku, Einheiten, helles/dunkles Design, Tabs an/aus zum Stromsparen und SOS. Tipp jederzeit aufs Logo 🛰️ für die Hilfe." }
+  ];
+  var tourIdx = 0;
+  function renderTour() {
+    var s = tourSteps[tourIdx];
+    $("tourIcon").textContent = s.i; $("tourTitle").textContent = s.t; $("tourText").textContent = s.x;
+    var dots = ""; for (var k = 0; k < tourSteps.length; k++) dots += '<i class="' + (k === tourIdx ? "on" : "") + '"></i>'; $("tourDots").innerHTML = dots;
+    $("tourNext").textContent = tourIdx === tourSteps.length - 1 ? "Los geht's ✓" : "Weiter";
+  }
+  function startTour() { tourIdx = 0; renderTour(); $("tour").classList.add("show"); }
+  function endTour() { $("tour").classList.remove("show"); LS.setItem("gg_tour", "1"); }
+  $("tourNext").onclick = function () { if (tourIdx < tourSteps.length - 1) { tourIdx++; renderTour(); } else endTour(); };
+  $("tourSkip").onclick = endTour;
+  $("tourBtn").onclick = startTour;
+  if (!LS.getItem("gg_tour")) setTimeout(startTour, 600);
 
   $("resetBtn").onclick = function () {
     if (!window.confirm("Alle Wegpunkte, Touren und Einstellungen auf diesem Gerät löschen?")) return;

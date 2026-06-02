@@ -1,31 +1,34 @@
 <!DOCTYPE html>
-<html lang="de" data-theme="dark">
+<html lang="de" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <title>GeoPilot</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
+<meta name="theme-color" content="#f4f6fb" />
 <link rel="stylesheet" href="leaflet/leaflet.css" />
 <script src="leaflet/leaflet.js"></script>
 <script src="qrcode.js"></script>
 <style>
   :root{
-    --primary:#0ea5e9; --secondary:#6366f1; --success:#10b981;
+    --primary:#2563eb; --secondary:#6366f1; --success:#16a34a;
     --warning:#f59e0b; --danger:#ef4444;
-    --bg-body:#0f172a; --bg-card:#1e293b; --bg-soft:#0b1220;
-    --text-main:#f8fafc; --text-muted:#94a3b8; --border:#334155;
-    --radius:18px; --nav-h:62px;
+    --bg-body:#f4f6fb; --bg-card:#ffffff; --bg-soft:#eef2f8;
+    --text-main:#0b1220; --text-muted:#5b6b85; --border:#e4e9f2;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.06);
+    --radius:18px; --nav-h:64px;
   }
-  [data-theme="light"]{--bg-body:#f1f5f9;--bg-card:#fff;--bg-soft:#e2e8f0;--text-main:#0f172a;--text-muted:#64748b;--border:#cbd5e1;}
-  [data-theme="night"]{--primary:#ff3b30;--secondary:#ff3b30;--success:#ff6b35;--warning:#ff3b30;--danger:#ff3b30;
-    --bg-body:#000;--bg-card:#160000;--bg-soft:#0a0000;--text-main:#ff4d4d;--text-muted:#a30000;--border:#3a0000;}
+  [data-theme="dark"]{--primary:#3b82f6;--secondary:#818cf8;--success:#22c55e;
+    --bg-body:#0b1220;--bg-card:#131c2e;--bg-soft:#0e1626;--text-main:#f1f5f9;--text-muted:#94a3b8;--border:#243047;
+    --shadow:0 1px 2px rgba(0,0,0,.3);}
+  [data-theme="night"]{--primary:#ff453a;--secondary:#ff453a;--success:#ff6b35;--warning:#ff453a;--danger:#ff453a;
+    --bg-body:#000;--bg-card:#140000;--bg-soft:#0a0000;--text-main:#ff5a4d;--text-muted:#a30000;--border:#360000;--shadow:none;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-body);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden;}
   .topbar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--border);}
   .logo{width:34px;height:34px;border-radius:10px;flex:none;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:18px;}
   .title{font-size:1.05rem;font-weight:800;}
-  .status-pill{margin-left:auto;font-size:.68rem;font-weight:700;padding:5px 9px;border-radius:999px;background:#33415544;border:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+  .status-pill{margin-left:auto;font-size:.68rem;font-weight:700;padding:5px 9px;border-radius:999px;background:var(--bg-soft);border:1px solid var(--border);display:flex;align-items:center;gap:6px;}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);}
   .dot.live{background:var(--success);animation:pulse 1.6s infinite;} .dot.warn{background:var(--warning);} .dot.err{background:var(--danger);}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5);}70%{box-shadow:0 0 0 7px rgba(16,185,129,0);}100%{box-shadow:0 0 0 0 transparent;}}
@@ -34,7 +37,7 @@
   .page{position:absolute;inset:0;overflow-y:auto;padding:14px 14px 20px;display:none;}
   .page.active{display:block;}
   #page-map.active{display:flex;flex-direction:column;padding:0;}
-  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
   .section-title{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 2px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
   /* Einklappbare Karten */
   .card.collapsible>.section-title{cursor:pointer;margin-bottom:0;user-select:none;justify-content:flex-start;}
@@ -47,7 +50,7 @@
   .compass-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
   .compass{position:relative;width:210px;height:210px;}
   .rose{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#1e293b,#0b1220 25%,#1e293b 50%,#0b1220 75%,#1e293b);border:2px solid var(--border);box-shadow:inset 0 0 40px rgba(0,0,0,.6);transition:transform .12s linear;}
-  [data-theme="light"] .rose{background:conic-gradient(from 0deg,#e2e8f0,#cbd5e1 25%,#e2e8f0 50%,#cbd5e1 75%,#e2e8f0);}
+  [data-theme="light"] .rose{background:conic-gradient(from 0deg,#eef2f8,#dbe3ee 25%,#eef2f8 50%,#dbe3ee 75%,#eef2f8);box-shadow:inset 0 0 24px rgba(16,24,40,.07);}
   [data-theme="night"] .rose{background:#0a0000;}
   .ticks{position:absolute;inset:0;}
   .tick{position:absolute;left:50%;top:50%;width:2px;height:105px;transform-origin:bottom center;}
@@ -83,6 +86,23 @@
   .acc-fill{height:100%;width:0;border-radius:999px;transition:width .4s, background .4s;}
   .src-tag{font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:999px;background:var(--bg-body);border:1px solid var(--border);color:var(--text-muted);}
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;}
+  /* Kompakte Kacheln */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .tile{background:var(--bg-soft);border:1px solid var(--border);border-radius:14px;padding:11px 4px;text-align:center;}
+  .tile .v{font-size:1.12rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+  .tile .u{font-size:.6rem;color:var(--text-muted);font-weight:700;}
+  .tile .l{font-size:.55rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;margin-top:5px;}
+  /* Onboarding-Tour */
+  #tour{align-items:center;justify-content:center;}
+  .tour-card{max-width:380px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:22px;padding:26px 22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45);}
+  .tour-icon{font-size:54px;line-height:1;margin-bottom:10px;}
+  .tour-title{font-size:1.3rem;font-weight:800;margin-bottom:8px;color:var(--text-main);}
+  .tour-text{font-size:.92rem;color:var(--text-muted);line-height:1.55;min-height:70px;}
+  .tour-dots{display:flex;justify-content:center;gap:6px;margin:16px 0;}
+  .tour-dots i{width:7px;height:7px;border-radius:50%;background:var(--border);transition:all .2s;}
+  .tour-dots i.on{background:var(--primary);width:18px;border-radius:4px;}
+  .tour-btns{display:flex;gap:10px;}
+  .tour-btns button{flex:1;}
 
   button{font-family:inherit;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:.88rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .08s;}
   button:active{transform:scale(.97);}
@@ -228,6 +248,13 @@
         </div>
       </div>
 
+      <div class="tiles" style="margin-bottom:12px">
+        <div class="tile"><div class="v"><span id="qSpeed">0</span></div><div class="l"><span id="qSpeedU">km/h</span></div></div>
+        <div class="tile"><div class="v"><span id="qAlt">--</span></div><div class="l">Höhe <span id="qAltU">m</span></div></div>
+        <div class="tile"><div class="v"><span id="qCourse">--</span>°</div><div class="l">Kurs</div></div>
+        <div class="tile"><div class="v"><span id="qAcc">--</span></div><div class="l">± Meter</div></div>
+      </div>
+
       <div class="card">
         <div class="section-title">Karte &amp; Richtung</div>
         <div id="compassMap"></div>
@@ -237,7 +264,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">Positions-Sicherheit</div>
         <div class="metric full">
           <div class="label">🎯 Genauigkeit (Fix-Qualität)</div>
@@ -246,7 +273,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card collapsible collapsed">
         <div class="section-title">GPS-Daten</div>
         <div class="grid">
           <div class="metric"><div class="label">📍 Breite</div><div class="value" id="lat">--</div></div>
@@ -536,10 +563,11 @@
       <div class="card collapsible collapsed">
         <div class="section-title">Hilfe &amp; Daten</div>
         <button id="helpOpenBtn" class="b-primary full-btn">❓ Hilfe &amp; Erste Schritte</button>
+        <button id="tourBtn" class="b-soft full-btn" style="margin-top:9px">🎬 Einführungstour starten</button>
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.6 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.7 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -592,7 +620,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.6 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.7 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 
@@ -601,6 +629,17 @@
     <div class="help-box">
       <button class="close" id="flugDetClose">✖ Schließen</button>
       <div id="flugDetBody"></div>
+    </div>
+  </div>
+
+  <!-- Onboarding-Tour -->
+  <div class="overlay" id="tour">
+    <div class="tour-card">
+      <div class="tour-icon" id="tourIcon">🛰️</div>
+      <div class="tour-title" id="tourTitle"></div>
+      <div class="tour-text" id="tourText"></div>
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-btns"><button id="tourSkip" class="b-soft">Überspringen</button><button id="tourNext" class="b-primary">Weiter</button></div>
     </div>
   </div>
 
