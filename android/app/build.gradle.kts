@@ -11,17 +11,33 @@ android {
         applicationId = "com.dhl.gps"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
+    }
+
+    // Fester Signaturschlüssel, damit Updates über vorherige Installationen
+    // funktionieren (gleiche App-Signatur bei jedem Build).
+    signingConfigs {
+        create("release") {
+            storeFile = file("geoguard-release.keystore")
+            storePassword = "geoguard"
+            keyAlias = "geoguard"
+            keyPassword = "geoguard"
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            // Auch Debug-Builds mit demselben Schlüssel signieren -> einheitliche Signatur
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

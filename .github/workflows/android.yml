@@ -40,11 +40,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build Debug APK
+      - name: Build signed Release APK
         run: |
           n=0
           until [ $n -ge 5 ]; do
-            ./gradlew --no-daemon assembleDebug && exit 0
+            ./gradlew --no-daemon assembleRelease && exit 0
             n=$((n+1))
             echo "::warning::Gradle build attempt $n failed (likely a transient download error), retrying in 15s…"
             sleep 15
@@ -53,7 +53,7 @@ jobs:
           exit 1
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GeoGuard.apk
+        run: cp app/build/outputs/apk/release/app-release.apk GeoGuard.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -66,14 +66,13 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1
-          name: GeoGuard v1.1
+          tag_name: v1.2
+          name: GeoGuard v1.2
           body: |
             GeoGuard – GPS, Kompass, Karte, Navigation & GNSS-Status.
-            Lade unten **GeoGuard.apk** herunter und installiere sie auf deinem Android-Gerät
-            (Installation aus unbekannten Quellen erlauben).
+            Lade unten **GeoGuard.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v1.1: Karte mit Track-Aufzeichnung & GPX-Export, Ziel-Navigation mit
-            Wegpunkten, Satelliten-/GNSS-Status, Einheiten-Umschaltung, SOS-SMS,
-            Bildschirm-Wachhalten und Hintergrund-Tracking.
+            **Wichtig:** Diese Version ist mit einem festen Schlüssel signiert. Falls eine
+            ältere GeoGuard-Version installiert ist, diese bitte **einmal deinstallieren**
+            und v1.2 neu installieren. Ab dann funktionieren Updates ganz normal.
           files: android/GeoGuard.apk
