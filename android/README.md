@@ -1,18 +1,15 @@
-# GeoGuard – GPS & Kompass (.apk)
+# GeoGuard – GPS, Kompass, Karte & Navigation (.apk)
 
-Eine native Android-App, die **GPS-Position** und **Kompass-Richtung** sicher anzeigt:
+Eine native Android-App rund um **Position und Richtung** – offline, **ohne Google
+Play Services**, ohne Tracking/Werbung.
 
-| Anzeige | Quelle |
-|---|---|
-| Breite / Länge (Dezimal + Grad/Minuten/Sekunden) | System-`LocationManager` (GPS-Satellit + Netzwerk) |
-| Höhe, Geschwindigkeit, GPS-Kurs | GPS-Fix |
-| Genauigkeit / Fix-Qualität (Sicherheitsindikator) | `Location.accuracy` mit Ampel-Bewertung |
-| Richtung (Kompassrose + Grad + Himmelsrichtung) | Rotations-Vektor-Sensor (Magnetometer + Gyroskop) |
-| Quelle / Zeitstempel | LocationManager-Provider |
-
-Funktionen: Tracking Start/Stopp, Koordinaten kopieren, Standort teilen, Kompass
-kalibrieren, „In Karte öffnen". Läuft **offline**, **ohne Google Play Services**,
-ohne Tracking/Werbung.
+| Bereich | Inhalt | Quelle |
+|---|---|---|
+| **Dashboard** | Breite/Länge (Dezimal + DMS), Höhe, Tempo, GPS-Kurs, Genauigkeits-Ampel, Kompassrose mit Grad + Himmelsrichtung | `LocationManager` + Rotations-Vektor-Sensor |
+| **Karte** | OpenStreetMap (Leaflet, lokal gebündelt), Live-Position, Track-Aufzeichnung mit Strecke/Dauer/Ø-+Max-Tempo, **GPX-Export** in Downloads | – |
+| **Ziel** | Navigation zu Koordinaten: großer Peil-Pfeil + Entfernung; Wegpunkte speichern/anspringen | Haversine/Bearing |
+| **Satelliten** | GNSS-Status: sichtbare/genutzte Satelliten, Ø-Signal, Systeme (GPS/Galileo/GLONASS/BeiDou…), Signalbalken | `GnssStatus` |
+| **Mehr** | Einheiten metrisch/imperial, Hell-/Dunkel-Design, Bildschirm wach, **SOS-SMS**, Hintergrund-Tracking (Foreground-Service) | – |
 
 ## Die fertige .apk bekommen — ohne lokale Installation
 

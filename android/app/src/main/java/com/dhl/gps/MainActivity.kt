@@ -1,17 +1,25 @@
 package com.dhl.gps
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.location.GnssStatus
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.os.Handler
+import android.provider.MediaStore
+import android.view.WindowManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -21,16 +29,19 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 /**
- * GeoGuard – zeigt GPS-Position und Kompass-Richtung an.
+ * GeoGuard – GPS, Kompass, Karte, Navigation und GNSS-Status.
  *
- * Die Oberfläche ist eine lokale HTML-Datei (assets/gps.html). Diese Activity
- * liefert die "sicheren" nativen Daten:
- *   - Standort über den System-LocationManager (GPS + Netzwerk, ohne Google Play Services)
- *   - Richtung über den Rotations-Vektor-Sensor (Magnetometer + Gyroskop)
- * und reicht sie per JavaScript-Bridge an die Web-Oberfläche weiter.
+ * Die Oberfläche ist eine lokale Web-App (assets/gps.html + app.js). Diese Activity
+ * liefert die nativen Daten und Aktionen über eine JavaScript-Bridge:
+ *   - Standort     : System-LocationManager (GPS + Netzwerk, ohne Play Services)
+ *   - Richtung     : Rotations-Vektor-Sensor (Magnetometer + Gyroskop)
+ *   - Satelliten   : GnssStatus (Anzahl, Signalstärke, Systeme)
+ *   - Datei/SOS    : GPX speichern, SOS-SMS, Bildschirm wach, Hintergrund-Dienst
  */
 class MainActivity : ComponentActivity(), LocationListener, SensorEventListener {
 
@@ -38,11 +49,11 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private lateinit var locationManager: LocationManager
     private lateinit var sensorManager: SensorManager
     private var rotationSensor: Sensor? = null
+    private var gnssCallback: GnssStatus.Callback? = null
 
     private val rotationMatrix = FloatArray(9)
     private val orientation = FloatArray(3)
     private var lastHeadingSent = 0L
-
     private var pendingStart = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,93 +73,116 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
             cacheMode = WebSettings.LOAD_DEFAULT
             mediaPlaybackRequiresUserGesture = false
         }
-
         webView.addJavascriptInterface(Bridge(), "Android")
-
         webView.webChromeClient = object : WebChromeClient() {
-            override fun onGeolocationPermissionsShowPrompt(
-                origin: String?,
-                callback: GeolocationPermissions.Callback?
-            ) {
-                // Lokale HTML-Seite – Standortfreigabe für den WebView erteilen.
+            override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback?) {
                 callback?.invoke(origin, true, false)
             }
         }
-
         webView.loadUrl("file:///android_asset/gps.html")
     }
 
     // ---------------------------------------------------------------------
-    // JavaScript-Bridge: aus gps.html aufrufbar als window.Android.*
+    // JavaScript-Bridge (window.Android.*)
     // ---------------------------------------------------------------------
     inner class Bridge {
+        @JavascriptInterface fun startLocation() = runOnUiThread { ensurePermissionThenStart() }
+        @JavascriptInterface fun stopLocation() = runOnUiThread { stopUpdates() }
+
         @JavascriptInterface
-        fun startLocation() {
-            runOnUiThread { ensurePermissionThenStart() }
+        fun toast(msg: String) = runOnUiThread { Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show() }
+
+        @JavascriptInterface
+        fun share(text: String) = runOnUiThread {
+            val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text) }
+            startActivity(Intent.createChooser(send, "Standort teilen"))
         }
 
         @JavascriptInterface
-        fun stopLocation() {
-            runOnUiThread { stopUpdates() }
+        fun sos(text: String) = runOnUiThread {
+            try {
+                val sms = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")).apply { putExtra("sms_body", text) }
+                startActivity(sms)
+            } catch (e: Exception) {
+                val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text) }
+                startActivity(Intent.createChooser(send, "SOS senden"))
+            }
         }
 
         @JavascriptInterface
-        fun toast(msg: String) {
-            runOnUiThread { Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show() }
+        fun keepAwake(on: Boolean) = runOnUiThread {
+            if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
 
         @JavascriptInterface
-        fun share(text: String) {
-            runOnUiThread {
-                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(android.content.Intent.EXTRA_TEXT, text)
+        fun setBackground(on: Boolean) = runOnUiThread {
+            if (on) {
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    ContextCompat.checkSelfPermission(this@MainActivity, "android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED
+                ) {
+                    ActivityCompat.requestPermissions(this@MainActivity, arrayOf("android.permission.POST_NOTIFICATIONS"), REQ_NOTIF)
                 }
-                startActivity(android.content.Intent.createChooser(send, "Standort teilen"))
+                ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, LocationService::class.java))
+            } else {
+                stopService(Intent(this@MainActivity, LocationService::class.java))
+            }
+        }
+
+        @JavascriptInterface
+        fun saveText(filename: String, mime: String, content: String) = runOnUiThread {
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                        put(MediaStore.Downloads.MIME_TYPE, mime)
+                        put(MediaStore.Downloads.IS_PENDING, 1)
+                    }
+                    val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    if (uri != null) {
+                        contentResolver.openOutputStream(uri)?.use { it.write(content.toByteArray()) }
+                        values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0)
+                        contentResolver.update(uri, values, null, null)
+                        Toast.makeText(this@MainActivity, "Gespeichert in Downloads: $filename", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    val dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+                    val f = File(dir, filename)
+                    f.writeText(content)
+                    Toast.makeText(this@MainActivity, "Gespeichert: ${f.absolutePath}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Speichern fehlgeschlagen: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
     // ---------------------------------------------------------------------
-    // Berechtigung + Start
+    // Berechtigung + Start/Stop
     // ---------------------------------------------------------------------
     private fun hasLocationPermission(): Boolean =
-        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     private fun ensurePermissionThenStart() {
-        if (hasLocationPermission()) {
-            startUpdates()
-        } else {
+        if (hasLocationPermission()) startUpdates()
+        else {
             pendingStart = true
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ),
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 REQ_LOCATION
             )
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQ_LOCATION) {
             if (grantResults.isNotEmpty() && grantResults.any { it == PackageManager.PERMISSION_GRANTED }) {
                 if (pendingStart) startUpdates()
             } else {
-                webView.evaluateJavascript(
-                    "window.onNativeLocation && window.onNativeLocation(null);" +
-                        "document.getElementById('hint').textContent='Standort-Berechtigung verweigert.';",
-                    null
-                )
+                webView.evaluateJavascript("window.onNativeLocation && window.onNativeLocation(null);", null)
             }
             pendingStart = false
         }
@@ -157,7 +191,6 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private fun startUpdates() {
         if (!hasLocationPermission()) return
         try {
-            // Zuletzt bekannte Position sofort anzeigen (schneller erster Fix).
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
             var best: Location? = null
             for (p in providers) {
@@ -168,27 +201,75 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
                 }
             }
             best?.let { onLocationChanged(it) }
+            registerGnss()
         } catch (se: SecurityException) {
-            // Sollte durch Permission-Check nicht passieren.
+            // durch Permission-Check abgesichert
         }
-        rotationSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI)
-        }
+        rotationSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
 
     private fun stopUpdates() {
         try { locationManager.removeUpdates(this) } catch (_: Exception) {}
+        unregisterGnss()
         sensorManager.unregisterListener(this)
     }
 
-    override fun onPause() {
-        super.onPause()
-        stopUpdates()
+    override fun onPause() { super.onPause(); sensorManager.unregisterListener(this) }
+    override fun onResume() { super.onResume(); if (hasLocationPermission()) startUpdates() }
+
+    // ---------------------------------------------------------------------
+    // GNSS-Satellitenstatus
+    // ---------------------------------------------------------------------
+    private fun registerGnss() {
+        if (gnssCallback != null || !hasLocationPermission()) return
+        val cb = object : GnssStatus.Callback() {
+            override fun onSatelliteStatusChanged(status: GnssStatus) {
+                val count = status.satelliteCount
+                var used = 0
+                var cn0sum = 0f
+                var cn0cnt = 0
+                val systems = sortedSetOf<String>()
+                val sats = JSONArray()
+                for (i in 0 until count) {
+                    val cn0 = status.getCn0DbHz(i)
+                    val inFix = status.usedInFix(i)
+                    if (inFix) used++
+                    if (cn0 > 0f) { cn0sum += cn0; cn0cnt++ }
+                    val type = constellationName(status.getConstellationType(i))
+                    systems.add(type)
+                    sats.put(JSONObject().apply { put("cn0", cn0); put("used", inFix); put("type", type) })
+                }
+                val g = JSONObject().apply {
+                    put("total", count)
+                    put("used", used)
+                    put("avgCn0", if (cn0cnt > 0) cn0sum / cn0cnt else JSONObject.NULL)
+                    put("systems", JSONArray(systems.toList()))
+                    put("sats", sats)
+                }
+                runOnUiThread { webView.evaluateJavascript("window.onNativeGnss && window.onNativeGnss($g);", null) }
+            }
+        }
+        try {
+            locationManager.registerGnssStatusCallback(cb, Handler(mainLooper))
+            gnssCallback = cb
+        } catch (se: SecurityException) {
+        }
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (hasLocationPermission()) startUpdates()
+    private fun unregisterGnss() {
+        gnssCallback?.let { try { locationManager.unregisterGnssStatusCallback(it) } catch (_: Exception) {} }
+        gnssCallback = null
+    }
+
+    private fun constellationName(type: Int): String = when (type) {
+        GnssStatus.CONSTELLATION_GPS -> "GPS"
+        GnssStatus.CONSTELLATION_GLONASS -> "GLONASS"
+        GnssStatus.CONSTELLATION_GALILEO -> "Galileo"
+        GnssStatus.CONSTELLATION_BEIDOU -> "BeiDou"
+        GnssStatus.CONSTELLATION_QZSS -> "QZSS"
+        GnssStatus.CONSTELLATION_SBAS -> "SBAS"
+        GnssStatus.CONSTELLATION_IRNSS -> "IRNSS"
+        else -> "Andere"
     }
 
     // ---------------------------------------------------------------------
@@ -214,26 +295,23 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         else -> p ?: "GPS"
     }
 
-    @Deprecated("Deprecated in API 29, für ältere Geräte erforderlich")
+    @Deprecated("Für ältere Geräte erforderlich")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) {}
 
     // ---------------------------------------------------------------------
-    // SensorEventListener (Kompass)
+    // Kompass (SensorEventListener)
     // ---------------------------------------------------------------------
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
         val now = System.currentTimeMillis()
-        if (now - lastHeadingSent < 80) return // ~12 Hz, schont die Bridge
+        if (now - lastHeadingSent < 80) return
         lastHeadingSent = now
 
         SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-
-        // Display-Rotation berücksichtigen (Portrait/Landscape).
         val rotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
             display?.rotation ?: 0 else @Suppress("DEPRECATION") windowManager.defaultDisplay.rotation
-
         val (axisX, axisY) = when (rotation) {
             android.view.Surface.ROTATION_90 -> SensorManager.AXIS_Y to SensorManager.AXIS_MINUS_X
             android.view.Surface.ROTATION_180 -> SensorManager.AXIS_MINUS_X to SensorManager.AXIS_MINUS_Y
@@ -243,7 +321,6 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         val remapped = FloatArray(9)
         SensorManager.remapCoordinateSystem(rotationMatrix, axisX, axisY, remapped)
         SensorManager.getOrientation(remapped, orientation)
-
         var azimuth = Math.toDegrees(orientation[0].toDouble())
         azimuth = (azimuth + 360.0) % 360.0
         webView.evaluateJavascript("window.onNativeHeading && window.onNativeHeading($azimuth);", null)
@@ -259,5 +336,6 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
     companion object {
         private const val REQ_LOCATION = 42
+        private const val REQ_NOTIF = 43
     }
 }
