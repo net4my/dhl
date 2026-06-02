@@ -257,9 +257,10 @@
   nav.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return; var tab = b.getAttribute("data-tab");
     Array.prototype.forEach.call(nav.children, function (c) { c.classList.toggle("sel", c === b); });
-    ["dash", "map", "nav", "tours", "sat", "more"].forEach(function (t) { $("page-" + t).classList.toggle("active", t === tab); });
+    ["dash", "map", "nav", "tours", "sat", "flug", "more"].forEach(function (t) { $("page-" + t).classList.toggle("active", t === tab); });
     if (tab === "map") ensureMap();
     if (tab === "tours") drawProfile();
+    if (tab === "flug") openFlug(); else pauseFlug();
   });
   function switchTab(tab) { var b = nav.querySelector('[data-tab="' + tab + '"]'); if (b) b.click(); }
 
@@ -569,83 +570,133 @@
   $("addrBtn").onclick = doSearch;
   $("addrInput").addEventListener("keydown", function (e) { if (e.key === "Enter") doSearch(); });
 
-  // ================= OSRM Straßen-Routing =================
-  var routeLine = null, routeSteps = [], routeStepIdx = 0;
-  function maneuverText(s) {
-    var m = s.maneuver || {}, type = m.type || "", mod = m.modifier || "", name = s.name || "";
-    var dir = { left: "links", right: "rechts", "slight left": "leicht links", "slight right": "leicht rechts", "sharp left": "scharf links", "sharp right": "scharf rechts", straight: "geradeaus", uturn: "wenden" }[mod] || "";
-    var base = { turn: "Abbiegen " + dir, "new name": "weiter", depart: "Start", arrive: "Ziel erreicht", merge: "einfädeln " + dir, "on ramp": "auffahren", "off ramp": "abfahren", fork: "Gabelung " + dir, "end of road": "am Ende " + dir, roundabout: "im Kreisverkehr", rotary: "im Kreisverkehr", continue: "weiter " + dir }[type] || ("weiter " + dir);
-    return base + (name ? " auf " + name : "");
+  // ================= Navigation (Valhalla, mehrmodal) =================
+  var routeLine = null, routeSteps = [], routeStepIdx = 0, routeShape = [], navActive = false, lastReroute = 0, pendingNavStart = false;
+  var navMode = LS.getItem("gg_mode") || "auto";
+  Array.prototype.forEach.call($("modeSeg").children, function (b) { b.onclick = function () { navMode = b.getAttribute("data-m"); LS.setItem("gg_mode", navMode); Array.prototype.forEach.call($("modeSeg").children, function (x) { x.classList.toggle("sel", x === b); }); }; b.classList.toggle("sel", b.getAttribute("data-m") === navMode); });
+  function decodePolyline(str, precision) {
+    var index = 0, lat = 0, lng = 0, coords = [], shift, result, byte, factor = Math.pow(10, precision || 6);
+    while (index < str.length) {
+      shift = 0; result = 0; do { byte = str.charCodeAt(index++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+      shift = 0; result = 0; do { byte = str.charCodeAt(index++) - 63; result |= (byte & 0x1f) << shift; shift += 5; } while (byte >= 0x20);
+      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+      coords.push([lat / factor, lng / factor]);
+    }
+    return coords;
   }
+  function navArrowFor(instr) {
+    var s = (instr || "").toLowerCase();
+    if (s.indexOf("ziel") >= 0 || s.indexOf("angekommen") >= 0) return "🏁";
+    if (s.indexOf("kreisverkehr") >= 0) return "🔄";
+    if (s.indexOf("scharf links") >= 0) return "↰"; if (s.indexOf("scharf rechts") >= 0) return "↱";
+    if (s.indexOf("links") >= 0) return "⬅️"; if (s.indexOf("rechts") >= 0) return "➡️";
+    if (s.indexOf("wenden") >= 0 || s.indexOf("umkehr") >= 0) return "↩️";
+    return "⬆️";
+  }
+  function fmtDur(secs) { var m = Math.round(secs / 60); if (m < 60) return m + " min"; return Math.floor(m / 60) + " h " + (m % 60) + " min"; }
   function calcRoute() {
     if (!target || !lastFix) { toast("Erst Ziel und Position nötig."); return; }
     $("rtDist").textContent = "…"; $("rtTime").textContent = "…";
+    var body = { locations: [{ lat: lastFix.lat, lon: lastFix.lon }, { lat: target.lat, lon: target.lon }], costing: navMode, directions_options: { language: "de", units: "kilometers" } };
+    var url = "https://valhalla1.openstreetmap.de/route?json=" + encodeURIComponent(JSON.stringify(body));
+    httpJson(url).then(function (j) {
+      if (!j || !j.trip || !j.trip.legs || !j.trip.legs.length) { osrmFallback(); return; }
+      var leg = j.trip.legs[0];
+      routeShape = decodePolyline(leg.shape, 6);
+      routeSteps = (leg.maneuvers || []).map(function (m) { return { instr: m.instruction || "weiter", dist: (m.length || 0) * 1000, time: m.time || 0, loc: routeShape[m.begin_shape_index] || [lastFix.lat, lastFix.lon], _ann: false }; });
+      routeStepIdx = 0; showRoute((leg.summary.length || 0) * 1000, leg.summary.time || 0);
+    });
+  }
+  function osrmFallback() {
+    if (navMode !== "auto") { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
     var url = "https://router.project-osrm.org/route/v1/driving/" + lastFix.lon + "," + lastFix.lat + ";" + target.lon + "," + target.lat + "?overview=full&geometries=geojson&steps=true";
     httpJson(url).then(function (j) {
-      if (!j || j.code !== "Ok" || !j.routes || !j.routes.length) { toast("Keine Route gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
-      var rt = j.routes[0], d = fmtDist(rt.distance), mins = Math.round(rt.duration / 60);
-      $("rtDist").textContent = d.v + " " + d.u; $("rtTime").textContent = mins + " min";
-      ensureMap();
-      setTimeout(function () {
-        if (!map) return; if (routeLine) map.removeLayer(routeLine);
-        var pts = rt.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
-        routeLine = L.polyline(pts, { color: "#6366f1", weight: 6, opacity: .9 }).addTo(map);
-        followMe = false; map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
-      }, 100);
-      routeSteps = (rt.legs && rt.legs[0] && rt.legs[0].steps) ? rt.legs[0].steps : []; routeStepIdx = 0;
-      renderSteps();
-      if (voiceOn && routeSteps.length) speak("Route berechnet. " + Math.round(rt.distance / 1000 * 10) / 10 + " Kilometer, " + mins + " Minuten.");
+      if (!j || j.code !== "Ok" || !j.routes || !j.routes.length) { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
+      var rt = j.routes[0]; routeShape = rt.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
+      var steps = (rt.legs && rt.legs[0] && rt.legs[0].steps) ? rt.legs[0].steps : [];
+      routeSteps = steps.map(function (s) { var mo = (s.maneuver && s.maneuver.modifier) || "", nm = s.name || ""; var dir = { left: "links", right: "rechts", "slight left": "leicht links", "slight right": "leicht rechts", "sharp left": "scharf links", "sharp right": "scharf rechts", straight: "geradeaus", uturn: "wenden" }[mo] || ""; return { instr: ("Weiter " + dir).trim() + (nm ? " auf " + nm : ""), dist: s.distance, time: s.duration, loc: [s.maneuver.location[1], s.maneuver.location[0]], _ann: false }; });
+      routeStepIdx = 0; showRoute(rt.distance, rt.duration);
     });
+  }
+  function showRoute(dist, secs) {
+    var d = fmtDist(dist); $("rtDist").textContent = d.v + " " + d.u; $("rtTime").textContent = fmtDur(secs);
+    ensureMap();
+    setTimeout(function () { if (!map) return; if (routeLine) map.removeLayer(routeLine); routeLine = L.polyline(routeShape, { color: "#6366f1", weight: 6, opacity: .9 }).addTo(map); if (!navActive) { followMe = false; map.fitBounds(routeLine.getBounds(), { padding: [30, 30] }); } }, 100);
+    renderSteps();
+    if (voiceOn) speak("Route berechnet. " + (Math.round(dist / 100) / 10) + " Kilometer, " + fmtDur(secs) + ".");
+    if (pendingNavStart) { pendingNavStart = false; startNav(); }
   }
   function renderSteps() {
     var c = $("steps"); if (!routeSteps.length) { c.innerHTML = ""; return; } c.innerHTML = "";
-    routeSteps.forEach(function (s, i) {
-      var d = fmtDist(s.distance), row = document.createElement("div"); row.className = "wp-item"; if (i === routeStepIdx) row.style.borderColor = "var(--primary)";
-      row.innerHTML = '<div style="flex:1"><div class="nm" style="font-size:.82rem">' + (i + 1) + ". " + escapeHtml(maneuverText(s)) + '</div><div class="co">' + d.v + " " + d.u + "</div></div>";
-      c.appendChild(row);
-    });
+    routeSteps.forEach(function (s, i) { var d = fmtDist(s.dist), row = document.createElement("div"); row.className = "wp-item"; if (i === routeStepIdx) row.style.borderColor = "var(--primary)"; row.innerHTML = '<div style="flex:1"><div class="nm" style="font-size:.82rem">' + navArrowFor(s.instr) + " " + escapeHtml(s.instr) + '</div><div class="co">' + d.v + " " + d.u + '</div></div>'; c.appendChild(row); });
+  }
+  function distToRoute(lat, lon) { var min = Infinity; for (var i = 0; i < routeShape.length; i += 2) { var dd = haversine(lat, lon, routeShape[i][0], routeShape[i][1]); if (dd < min) min = dd; } return min; }
+  function remaining() {
+    var distRem = 0, timeRem = 0;
+    if (lastFix && routeSteps[routeStepIdx]) distRem += haversine(lastFix.lat, lastFix.lon, routeSteps[routeStepIdx].loc[0], routeSteps[routeStepIdx].loc[1]);
+    for (var i = routeStepIdx + 1; i < routeSteps.length; i++) distRem += routeSteps[i].dist;
+    for (var k = routeStepIdx; k < routeSteps.length; k++) timeRem += routeSteps[k].time;
+    return { dist: distRem, time: timeRem };
   }
   function routeProgress() {
     if (!routeSteps.length || !lastFix) return;
-    var s = routeSteps[routeStepIdx]; if (!s || !s.maneuver || !s.maneuver.location) return;
-    var loc = s.maneuver.location, dist = haversine(lastFix.lat, lastFix.lon, loc[1], loc[0]);
-    if (dist < 30 && routeStepIdx < routeSteps.length - 1) {
-      routeStepIdx++; renderSteps();
-      var ns = routeSteps[routeStepIdx]; if (voiceOn && ns) speak("Als nächstes: " + maneuverText(ns));
-    } else if (voiceOn && dist < 150 && !s._announced) { s._announced = true; var dd = fmtDist(dist); speak("In " + dd.v + " " + (dd.u === "km" ? "Kilometern" : "Metern") + " " + maneuverText(s)); }
+    var s = routeSteps[routeStepIdx]; if (!s) return;
+    var dToMan = haversine(lastFix.lat, lastFix.lon, s.loc[0], s.loc[1]);
+    if (navActive) {
+      var eta = remaining(), ed = fmtDist(eta.dist), arr = new Date(Date.now() + eta.time * 1000);
+      var nxt = routeSteps[routeStepIdx + 1] || s;
+      $("nbArrow").textContent = navArrowFor(nxt.instr); $("nbInstr").textContent = nxt.instr;
+      var dd = fmtDist(dToMan); $("nbDist").textContent = "in " + dd.v + " " + dd.u;
+      $("nbEta").textContent = "Ankunft ~" + arr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " · noch " + ed.v + " " + ed.u + " · " + fmtDur(eta.time);
+      if (map) { followMe = true; map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16)); }
+      if (routeShape.length && distToRoute(lastFix.lat, lastFix.lon) > 60 && Date.now() - lastReroute > 8000) { lastReroute = Date.now(); toast("Route wird neu berechnet…"); if (voiceOn) speak("Route wird neu berechnet."); calcRoute(); return; }
+    }
+    if (dToMan < 30 && routeStepIdx < routeSteps.length - 1) { routeStepIdx++; renderSteps(); var ns = routeSteps[routeStepIdx]; if (voiceOn && ns) speak(ns.instr); }
+    else if (voiceOn && dToMan < 180 && !s._ann) { s._ann = true; var d2 = fmtDist(dToMan); speak("In " + d2.v + " " + (d2.u === "km" ? "Kilometern" : "Metern") + ": " + s.instr); }
   }
-  $("routeBtn").onclick = calcRoute;
-  $("routeClearBtn").onclick = function () { if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
+  function startNav() { if (!routeSteps.length) { pendingNavStart = true; calcRoute(); return; } navActive = true; $("navBanner").classList.add("show"); $("navStartBtn").textContent = "⏹ Navigation läuft"; switchTab("map"); if (voiceOn) speak("Navigation gestartet."); routeProgress(); }
+  function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Navigation starten"; }
+  $("routeBtn").onclick = function () { calcRoute(); };
+  $("navStartBtn").onclick = function () { if (navActive) stopNav(); else startNav(); };
+  $("navStopBtn").onclick = stopNav;
+  $("routeClearBtn").onclick = function () { stopNav(); if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; routeShape = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
 
-  // ================= Flugradar (OpenSky) =================
-  var flugOn = false, flugLayer = null, flugTimer = null, flugInterval = 15000;
-  function planeIcon(track) {
-    return L.divIcon({ className: "", html: '<div style="font-size:22px;transform:rotate(' + ((track || 0) - 45) + 'deg);filter:drop-shadow(0 1px 2px #000)">✈️</div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+  // ================= Flugradar (eigener Tab, OpenSky) =================
+  var flugMap = null, flugLayer = null, flugTimer = null, flugInterval = 15000, flugAutoOn = true, flugVisible = false;
+  function planeIcon(track) { return L.divIcon({ className: "", html: '<div style="font-size:22px;transform:rotate(' + ((track || 0) - 45) + 'deg);filter:drop-shadow(0 1px 2px #000)">✈️</div>', iconSize: [24, 24], iconAnchor: [12, 12] }); }
+  function ensureFlugMap() {
+    if (flugMap || typeof L === "undefined") { if (flugMap) setTimeout(function () { flugMap.invalidateSize(); }, 50); return; }
+    var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
+    flugMap = L.map("flugMap", { zoomControl: true, attributionControl: false }).setView(c, lastFix ? 9 : 5);
+    new OfflineLayer(TILE_URL, { maxZoom: 19 }).addTo(flugMap);
+    flugLayer = L.layerGroup().addTo(flugMap);
+    flugMap.on("moveend", function () { if (flugVisible) loadFlights(); });
+    setTimeout(function () { flugMap.invalidateSize(); }, 60);
   }
+  function openFlug() { flugVisible = true; ensureFlugMap(); loadFlights(); if (flugAutoOn) { if (flugTimer) clearInterval(flugTimer); flugTimer = setInterval(loadFlights, flugInterval); } }
+  function pauseFlug() { flugVisible = false; if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } }
   function loadFlights() {
-    if (!flugOn || !map) return;
-    var b = map.getBounds();
+    if (!flugMap) return;
+    var b = flugMap.getBounds();
     var url = "https://opensky-network.org/api/states/all?lamin=" + b.getSouth().toFixed(4) + "&lomin=" + b.getWest().toFixed(4) + "&lamax=" + b.getNorth().toFixed(4) + "&lomax=" + b.getEast().toFixed(4);
+    $("flugCount").textContent = "…";
     httpJson(url).then(function (j) {
-      if (!flugOn) return;
-      if (!flugLayer) { flugLayer = L.layerGroup().addTo(map); } else flugLayer.clearLayers();
-      if (!j || !j.states) { $("flugCount").textContent = "0"; return; }
-      var n = 0;
-      j.states.forEach(function (s) {
-        var lon = s[5], lat = s[6]; if (lat == null || lon == null || s[8]) return; // on_ground überspringen
-        n++;
-        var cs = (s[1] || "").trim() || s[0], alt = s[13] != null ? s[13] : s[7], vel = s[9], trk = s[10];
-        var m = L.marker([lat, lon], { icon: planeIcon(trk) }).addTo(flugLayer);
-        m.bindPopup("<b>✈ " + cs + "</b><br>Höhe: " + (alt != null ? Math.round(alt) + " m" : "–") + "<br>Tempo: " + (vel != null ? Math.round(vel * 3.6) + " km/h" : "–") + "<br>Kurs: " + (trk != null ? Math.round(trk) + "°" : "–"));
-      });
-      $("flugCount").textContent = n;
+      if (flugLayer) flugLayer.clearLayers();
+      var list = $("flugList");
+      if (!j || !j.states) { $("flugCount").textContent = "0"; list.innerHTML = '<div class="hint">Keine Daten (oder offline).</div>'; return; }
+      var planes = [];
+      j.states.forEach(function (s) { var lon = s[5], lat = s[6]; if (lat == null || lon == null || s[8]) return; planes.push({ cs: (s[1] || "").trim() || s[0], lat: lat, lon: lon, alt: (s[13] != null ? s[13] : s[7]), vel: s[9], trk: s[10], country: s[2] }); });
+      $("flugCount").textContent = planes.length;
+      planes.forEach(function (p) { var m = L.marker([p.lat, p.lon], { icon: planeIcon(p.trk) }).addTo(flugLayer); m.bindPopup("<b>✈ " + p.cs + "</b><br>Höhe: " + (p.alt != null ? Math.round(p.alt) + " m" : "–") + "<br>Tempo: " + (p.vel != null ? Math.round(p.vel * 3.6) + " km/h" : "–") + "<br>Kurs: " + (p.trk != null ? Math.round(p.trk) + "°" : "–") + "<br>" + (p.country || "")); });
+      planes.sort(function (a, b) { return (b.alt || 0) - (a.alt || 0); });
+      if (!planes.length) { list.innerHTML = '<div class="hint">Keine Flugzeuge im Bereich. Karte verschieben oder rauszoomen.</div>'; return; }
+      list.innerHTML = "";
+      planes.slice(0, 40).forEach(function (p) { var row = document.createElement("div"); row.className = "wp-item"; row.innerHTML = '<div style="flex:1"><div class="nm">✈ ' + escapeHtml(p.cs) + '</div><div class="co">' + (p.alt != null ? Math.round(p.alt) + " m" : "–") + " · " + (p.vel != null ? Math.round(p.vel * 3.6) + " km/h" : "–") + " · " + (p.trk != null ? Math.round(p.trk) + "°" : "") + '</div></div>'; var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "🎯"; go.onclick = function () { flugMap.setView([p.lat, p.lon], 10); }; row.appendChild(go); list.appendChild(row); });
     });
   }
-  $("flugBtn").onclick = function () {
-    flugOn = !flugOn; this.className = flugOn ? "b-primary" : "b-soft";
-    if (flugOn) { ensureMap(); toast("Flugradar an – lade Flüge…"); loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); }
-    else { if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } if (flugLayer) flugLayer.clearLayers(); $("flugCount").textContent = "–"; }
-  };
+  $("flugRefresh").onclick = function () { loadFlights(); };
+  $("flugAuto").onclick = function () { flugAutoOn = !flugAutoOn; this.textContent = "⏯ Auto-Refresh: " + (flugAutoOn ? "an" : "aus"); this.className = flugAutoOn ? "b-success" : "b-soft"; if (flugAutoOn) { if (flugVisible) { loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); } } else if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } };
 
   // ================= Wetter (Open-Meteo) =================
   var lastWeather = 0;

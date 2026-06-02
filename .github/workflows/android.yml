@@ -66,16 +66,16 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.5
-          name: GeoGuard v1.5
+          tag_name: v1.6
+          name: GeoGuard v1.6
           body: |
-            GeoGuard – GPS, Navigation, Live-Daten & Akku-Management.
+            GeoGuard – echte Live-Navigation & eigener Flugradar.
             Lade unten **GeoGuard.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v1.5: Akku-Überwachung (Ladestand, Temperatur, Zustand),
-            geschätzte Restlaufzeit, Sitzungsdauer, Energiesparmodus (GPS & Live-Daten
-            gedrosselt), Akku-Warnung und „Von Akku-Optimierung ausnehmen" (damit das
-            Hintergrund-Tracking nicht beendet wird).
+            Neu in v1.6: Live-Navigation mit Modi (🚗 Auto · 🚶 Fuß · 🚴 Rad) über
+            Valhalla mit deutschen Abbiege-Ansagen, Navigations-Banner, Ankunftszeit/
+            Restdistanz und automatischer Neuberechnung bei Abweichung. Flugradar ist
+            jetzt ein eigener Tab mit eigener Karte und Flugliste.
 
             Hinweis: Falls eine v1.0/v1.1 installiert ist, diese **einmal deinstallieren**
             (ab v1.2 funktionieren Updates dank festem Signaturschlüssel normal).
