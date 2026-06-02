@@ -61,6 +61,8 @@
   .needle::after{bottom:0;height:50%;background:linear-gradient(#1e293b,#334155);clip-path:polygon(0 0,100% 0,50% 100%);}
   .sun-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:18px;line-height:1;transform-origin:center;transition:transform .3s;pointer-events:none;text-align:center;}
   .tgt-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:16px;line-height:1;transform-origin:center;transition:transform .2s;pointer-events:none;text-align:center;}
+  #compassMap{height:210px;width:100%;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#0b1220;}
+  .cm-arrow{font-size:30px;line-height:1;transition:transform .12s linear;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
   .progress{height:11px;border-radius:999px;background:var(--bg-body);border:1px solid var(--border);overflow:hidden;margin:10px 0 4px;}
   .progress>div{height:100%;background:linear-gradient(90deg,var(--primary),var(--secondary));width:0;transition:width .4s;}
   .hub{position:absolute;left:50%;top:50%;width:15px;height:15px;border-radius:50%;background:var(--text-main);transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--bg-soft);}
@@ -223,6 +225,15 @@
           <div class="metric"><div class="label">🧲 Magnetfeld</div><div class="value"><span id="magUt">--</span> <span class="unit">µT</span></div></div>
           <div class="metric"><div class="label">📐 Neigung</div><div class="value" id="tiltVal" style="font-size:.86rem">–</div></div>
           <div class="metric"><div class="label">⚖️ Wasserwaage</div><div class="value"><div id="level" class="level"><div id="levelBubble" class="level-bubble"></div></div></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Karte &amp; Richtung</div>
+        <div id="compassMap"></div>
+        <div class="grid" style="margin-top:10px">
+          <div class="metric"><div class="label">🧭 Blickrichtung</div><div class="value" id="cmHdg" style="font-size:.95rem">--</div></div>
+          <div class="metric"><div class="label">🎯 Zum Ziel</div><div class="value" id="cmTgt" style="font-size:.95rem">–</div></div>
         </div>
       </div>
 
@@ -528,7 +539,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.5 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.6 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -581,7 +592,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.5 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.6 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

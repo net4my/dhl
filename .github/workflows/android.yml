@@ -66,14 +66,16 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.5
-          name: GeoPilot v2.5
+          tag_name: v2.6
+          name: GeoPilot v2.6
           body: |
-            GeoPilot – großes Aufräum-/Übersichts-Update.
+            GeoPilot – Kompass-Karte & flüssiges Live-Flugradar.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v2.5: deutlich **aufgeräumtere Oberfläche** – Detail-Bereiche sind jetzt
-            **einklappbar** (nur das Wichtigste sichtbar, Details auf Tipp), mit klaren
-            Pfeil-Anzeigen und gespeichertem Zustand. Ruhigeres Layout, aktiver Tab in der
-            unteren Leiste klar markiert. Alle Funktionen bleiben erhalten.
+            Neu in v2.6:
+            • **Kompass**: Live-**Karte unter dem Kompass** mit Richtungspfeil (zeigt, wohin
+              du blickst) plus Blickrichtung & Peilung zum Ziel.
+            • **Flugradar**: jetzt **flüssig live** – Flugzeuge bewegen sich sanft zwischen
+              den Updates (Dead-Reckoning), stabile Marker statt Springen, sauberere Spur
+              und Verfolgung.
           files: android/GeoPilot.apk
