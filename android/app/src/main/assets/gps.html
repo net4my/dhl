@@ -130,7 +130,8 @@
   <div class="topbar">
     <div class="logo">🛰️</div>
     <div class="title">GeoGuard</div>
-    <div class="status-pill"><span id="dot" class="dot"></span><span id="statusText">Bereit</span></div>
+    <div class="status-pill" id="battTop" style="margin-left:auto"><span id="battIcon">🔋</span><span id="battTopPct">--%</span></div>
+    <div class="status-pill" style="margin-left:8px"><span id="dot" class="dot"></span><span id="statusText">Bereit</span></div>
   </div>
 
   <div class="pages">
@@ -354,6 +355,29 @@
         <button id="shareBtn" class="b-success full-btn" style="margin-top:9px">↗ Standort teilen</button>
       </div>
       <div class="card">
+        <div class="section-title">🔋 Akku &amp; Laufzeit</div>
+        <div class="grid">
+          <div class="metric"><div class="label">Ladestand</div><div class="value"><span id="battPct">--</span> <span class="unit">%</span></div></div>
+          <div class="metric"><div class="label">Status</div><div class="value" id="battStatus" style="font-size:.9rem">–</div></div>
+          <div class="metric"><div class="label">⏱ Sitzungsdauer</div><div class="value" id="battSession" style="font-size:.95rem">00:00</div></div>
+          <div class="metric"><div class="label">⏳ Restlaufzeit (gesch.)</div><div class="value" id="battRemain" style="font-size:.95rem">–</div></div>
+          <div class="metric"><div class="label">🌡️ Temperatur</div><div class="value"><span id="battTemp">--</span> <span class="unit">°C</span></div></div>
+          <div class="metric"><div class="label">⚡ Spannung / Zustand</div><div class="value" id="battHealth" style="font-size:.85rem">–</div></div>
+        </div>
+        <div class="acc-bar" style="margin-top:10px"><div id="battFill" class="acc-fill"></div></div>
+        <div class="switch" style="margin-top:10px">
+          <div><div class="t">🍃 Energiesparmodus</div><div class="d">GPS &amp; Live-Daten gedrosselt</div></div>
+          <div class="toggle" id="powerTgl"></div>
+        </div>
+        <div class="switch">
+          <div><div class="t">🪫 Akku-Warnung</div><div class="d">Hinweis bei niedrigem Ladestand</div></div>
+          <div class="toggle" id="battWarnTgl"></div>
+        </div>
+        <button id="battOptBtn" class="b-warn full-btn" style="margin-top:10px">⚙️ Von Akku-Optimierung ausnehmen</button>
+        <div class="hint" id="battOptHint" style="text-align:left;margin-top:8px">Verhindert, dass Android das Hintergrund-Tracking beendet.</div>
+      </div>
+
+      <div class="card">
         <div class="section-title">Nordreferenz</div>
         <div class="seg" id="northSeg">
           <button data-n="magnetic" class="sel">Magnetisch</button>
@@ -375,7 +399,7 @@
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
-      <div class="hint">GeoGuard v1.4 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoGuard v1.5 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 

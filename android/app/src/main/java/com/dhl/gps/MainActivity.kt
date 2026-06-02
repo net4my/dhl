@@ -3,10 +3,15 @@ package com.dhl.gps
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.BatteryManager
+import android.os.PowerManager
+import android.provider.Settings
 import android.hardware.GeomagneticField
 import android.hardware.Sensor
 import android.location.Geocoder
@@ -72,6 +77,8 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private var pendingStart = false
     private var tts: TextToSpeech? = null
     private val io: ExecutorService = Executors.newCachedThreadPool()
+    private var locationIntervalMs = 1000L
+    private var batteryReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -160,6 +167,39 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
         @JavascriptInterface
         fun notify(title: String, text: String) = runOnUiThread { doNotify(title, text) }
+
+        /** GPS-Aktualisierungsintervall ändern (Energiesparen). */
+        @JavascriptInterface
+        fun setLocationInterval(ms: Int) = runOnUiThread {
+            locationIntervalMs = ms.toLong().coerceAtLeast(500L)
+            if (hasLocationPermission()) {
+                try { locationManager.removeUpdates(this@MainActivity) } catch (_: Exception) {}
+                requestProviderUpdates(false)
+            }
+        }
+
+        @JavascriptInterface
+        fun isIgnoringBattery(): Boolean {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            return pm.isIgnoringBatteryOptimizations(packageName)
+        }
+
+        /** Dialog: GeoGuard von der Akku-Optimierung ausnehmen. */
+        @JavascriptInterface
+        fun requestIgnoreBatteryOptimization() = runOnUiThread {
+            try {
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                    startActivity(
+                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+                    )
+                } else {
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Akku-Einstellungen nicht verfügbar.", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         /** Server-seitiger HTTP-GET (umgeht CORS). Antwort via window.onHttp(id,status,body). */
         @JavascriptInterface
@@ -278,6 +318,12 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
     private fun startUpdates() {
         if (!hasLocationPermission()) return
+        requestProviderUpdates(true)
+        rotationSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+    }
+
+    private fun requestProviderUpdates(useLastKnown: Boolean) {
+        if (!hasLocationPermission()) return
         try {
             val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
             var best: Location? = null
@@ -285,15 +331,14 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
                 if (locationManager.isProviderEnabled(p)) {
                     val l = locationManager.getLastKnownLocation(p)
                     if (l != null && (best == null || l.accuracy < best.accuracy)) best = l
-                    locationManager.requestLocationUpdates(p, 1000L, 0f, this, mainLooper)
+                    locationManager.requestLocationUpdates(p, locationIntervalMs, 0f, this, mainLooper)
                 }
             }
-            best?.let { onLocationChanged(it) }
+            if (useLastKnown) best?.let { onLocationChanged(it) }
             registerGnss()
         } catch (se: SecurityException) {
             // durch Permission-Check abgesichert
         }
-        rotationSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
 
     private fun stopUpdates() {
@@ -302,8 +347,57 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         sensorManager.unregisterListener(this)
     }
 
-    override fun onPause() { super.onPause(); sensorManager.unregisterListener(this) }
-    override fun onResume() { super.onResume(); if (hasLocationPermission()) startUpdates() }
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
+        batteryReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
+        batteryReceiver = null
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (hasLocationPermission()) startUpdates()
+        registerBattery()
+    }
+
+    private fun registerBattery() {
+        if (batteryReceiver != null) return
+        batteryReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) { intent?.let { pushBattery(it) } }
+        }
+        val sticky = registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        sticky?.let { pushBattery(it) }
+    }
+
+    private fun pushBattery(intent: Intent) {
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        val pct = if (level >= 0 && scale > 0) level * 100 / scale else -1
+        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val plugged = when (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)) {
+            BatteryManager.BATTERY_PLUGGED_AC -> "Netzteil"
+            BatteryManager.BATTERY_PLUGGED_USB -> "USB"
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Kabellos"
+            else -> "–"
+        }
+        val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1) / 10.0
+        val volt = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1) / 1000.0
+        val health = when (intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1)) {
+            BatteryManager.BATTERY_HEALTH_GOOD -> "Gut"
+            BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Überhitzt"
+            BatteryManager.BATTERY_HEALTH_DEAD -> "Defekt"
+            BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "Überspannung"
+            BatteryManager.BATTERY_HEALTH_COLD -> "Kalt"
+            else -> "–"
+        }
+        val json = JSONObject().apply {
+            put("pct", pct); put("charging", charging); put("plugged", plugged)
+            put("temp", temp); put("volt", volt); put("health", health)
+            put("tech", intent.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY) ?: "–")
+        }
+        webView.evaluateJavascript("window.onNativeBattery && window.onNativeBattery($json);", null)
+    }
 
     // ---------------------------------------------------------------------
     // GNSS-Satellitenstatus

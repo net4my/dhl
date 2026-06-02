@@ -618,7 +618,7 @@
   $("routeClearBtn").onclick = function () { if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
 
   // ================= Flugradar (OpenSky) =================
-  var flugOn = false, flugLayer = null, flugTimer = null;
+  var flugOn = false, flugLayer = null, flugTimer = null, flugInterval = 15000;
   function planeIcon(track) {
     return L.divIcon({ className: "", html: '<div style="font-size:22px;transform:rotate(' + ((track || 0) - 45) + 'deg);filter:drop-shadow(0 1px 2px #000)">✈️</div>', iconSize: [24, 24], iconAnchor: [12, 12] });
   }
@@ -643,7 +643,7 @@
   }
   $("flugBtn").onclick = function () {
     flugOn = !flugOn; this.className = flugOn ? "b-primary" : "b-soft";
-    if (flugOn) { ensureMap(); toast("Flugradar an – lade Flüge…"); loadFlights(); flugTimer = setInterval(loadFlights, 15000); }
+    if (flugOn) { ensureMap(); toast("Flugradar an – lade Flüge…"); loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); }
     else { if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } if (flugLayer) flugLayer.clearLayers(); $("flugCount").textContent = "–"; }
   };
 
@@ -688,6 +688,46 @@
 
   $("bgTgl").onclick = function () { var on = !$("bgTgl").classList.contains("on"); $("bgTgl").classList.toggle("on", on); LS.setItem("gg_bg", on ? "1" : "0"); if (hasNative()) { try { window.Android.setBackground(on); } catch (e) {} } else toast("Hintergrund-Tracking nur in der nativen App (APK)."); };
   if (LS.getItem("gg_bg") === "1") $("bgTgl").classList.add("on");
+
+  // ================= Akku & Laufzeit =================
+  var sessionStart = Date.now(), battHist = [], lastBattWarn = 0;
+  var powerSave = LS.getItem("gg_power") === "1", battWarnOn = LS.getItem("gg_battwarn") !== "0";
+  $("powerTgl").classList.toggle("on", powerSave); $("battWarnTgl").classList.toggle("on", battWarnOn);
+  function battIconFor(pct, charging) { if (charging) return "⚡"; if (pct >= 0 && pct <= 10) return "🪫"; return "🔋"; }
+  window.onNativeBattery = function (j) { try { updateBattery(typeof j === "string" ? JSON.parse(j) : j); } catch (e) {} };
+  function updateBattery(b) {
+    var pct = b.pct;
+    $("battPct").textContent = pct >= 0 ? pct : "--";
+    $("battTopPct").textContent = pct >= 0 ? (pct + "%") : "--%";
+    $("battIcon").textContent = battIconFor(pct, b.charging);
+    $("battStatus").textContent = b.charging ? ("lädt" + (b.plugged && b.plugged !== "–" ? " (" + b.plugged + ")" : "")) : "entlädt";
+    $("battTemp").textContent = (b.temp != null && b.temp > 0) ? b.temp.toFixed(1) : "--";
+    $("battHealth").textContent = (b.volt > 0 ? b.volt.toFixed(2) + " V · " : "") + (b.health || "–");
+    var fill = $("battFill"); if (pct >= 0) { fill.style.width = pct + "%"; fill.style.background = pct <= 15 ? "var(--danger)" : pct <= 30 ? "var(--warning)" : "var(--success)"; }
+    if (!b.charging && pct >= 0) {
+      battHist.push({ t: Date.now(), pct: pct }); if (battHist.length > 60) battHist.shift();
+      var first = battHist[0], last = battHist[battHist.length - 1], dtH = (last.t - first.t) / 3600000, drop = first.pct - last.pct;
+      if (dtH > 0.03 && drop > 0) { var rate = drop / dtH, hrs = pct / rate, hh = Math.floor(hrs), mm = Math.round((hrs - hh) * 60); $("battRemain").textContent = "~" + hh + " h " + mm + " min"; }
+    } else if (b.charging) { $("battRemain").textContent = "lädt…"; }
+    if (battWarnOn && !b.charging && pct >= 0 && pct <= 15 && Date.now() - lastBattWarn > 300000) {
+      lastBattWarn = Date.now(); vibrate(800); speak("Achtung, Akku bei " + pct + " Prozent.");
+      if (hasNative()) { try { window.Android.notify("Akku niedrig", "Nur noch " + pct + "% – Energiesparmodus empfohlen."); } catch (e) {} }
+      toast("🪫 Akku niedrig: " + pct + "%");
+    }
+  }
+  setInterval(function () { var s = Math.floor((Date.now() - sessionStart) / 1000), hh = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60; $("battSession").textContent = (hh > 0 ? hh + ":" : "") + (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss; }, 1000);
+  function applyPower(on) {
+    powerSave = on; $("powerTgl").classList.toggle("on", on); LS.setItem("gg_power", on ? "1" : "0");
+    if (hasNative()) { try { window.Android.setLocationInterval(on ? 8000 : 1000); } catch (e) {} }
+    flugInterval = on ? 30000 : 15000; if (flugTimer) { clearInterval(flugTimer); flugTimer = setInterval(loadFlights, flugInterval); }
+  }
+  $("powerTgl").onclick = function () { applyPower(!powerSave); toast(powerSave ? "🍃 Energiesparmodus an." : "Energiesparmodus aus."); };
+  if (powerSave) applyPower(true);
+  $("battWarnTgl").onclick = function () { battWarnOn = !battWarnOn; this.classList.toggle("on", battWarnOn); LS.setItem("gg_battwarn", battWarnOn ? "1" : "0"); };
+  $("battOptBtn").onclick = function () { if (hasNative()) { try { window.Android.requestIgnoreBatteryOptimization(); setTimeout(updateOptStatus, 1500); } catch (e) {} } else toast("Nur in der nativen App (APK)."); };
+  function updateOptStatus() { if (hasNative()) { try { var ig = window.Android.isIgnoringBattery(); $("battOptHint").textContent = ig ? "✅ GeoGuard ist von der Akku-Optimierung ausgenommen." : "⚠️ Noch nicht ausgenommen – Hintergrund-Tracking kann beendet werden."; } catch (e) {} } }
+  updateOptStatus();
+  if (!hasNative() && navigator.getBattery) { navigator.getBattery().then(function (bat) { function upd() { updateBattery({ pct: Math.round(bat.level * 100), charging: bat.charging, plugged: bat.charging ? "USB" : "–", temp: 0, volt: 0, health: "–", tech: "–" }); } upd(); bat.addEventListener("levelchange", upd); bat.addEventListener("chargingchange", upd); }); }
 
   // ================= Start =================
   if (hasNative()) { setStatus("warn", "Initialisiere…"); try { window.Android.startLocation(); } catch (e) {} } else setStatus("", "Bereit – Tracking starten");
