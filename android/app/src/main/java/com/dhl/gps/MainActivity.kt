@@ -1,10 +1,13 @@
 package com.dhl.gps
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.GeomagneticField
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -18,7 +21,11 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.MediaStore
+import android.speech.tts.TextToSpeech
 import android.view.WindowManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
@@ -28,10 +35,13 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.Locale
 
 /**
  * GeoGuard – GPS, Kompass, Karte, Navigation und GNSS-Status.
@@ -55,6 +65,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private val orientation = FloatArray(3)
     private var lastHeadingSent = 0L
     private var pendingStart = false
+    private var tts: TextToSpeech? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +91,10 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
             }
         }
         webView.loadUrl("file:///android_asset/gps.html")
+
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) tts?.language = Locale.GERMAN
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -128,6 +143,17 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
                 stopService(Intent(this@MainActivity, LocationService::class.java))
             }
         }
+
+        @JavascriptInterface
+        fun vibrate(ms: Int) = runOnUiThread { doVibrate(ms.toLong()) }
+
+        @JavascriptInterface
+        fun speak(text: String) = runOnUiThread {
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "gg")
+        }
+
+        @JavascriptInterface
+        fun notify(title: String, text: String) = runOnUiThread { doNotify(title, text) }
 
         @JavascriptInterface
         fun saveText(filename: String, mime: String, content: String) = runOnUiThread {
@@ -285,8 +311,44 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
             put("bearing", if (location.hasBearing()) location.bearing else JSONObject.NULL)
             put("time", location.time)
             put("provider", providerLabel(location.provider))
+            val geo = GeomagneticField(
+                location.latitude.toFloat(),
+                location.longitude.toFloat(),
+                if (location.hasAltitude()) location.altitude.toFloat() else 0f,
+                location.time
+            )
+            put("declination", geo.declination)
         }
         webView.evaluateJavascript("window.onNativeLocation && window.onNativeLocation($json);", null)
+    }
+
+    private fun doVibrate(ms: Long) {
+        val vibrator: Vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION") getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        vibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
+    private fun doNotify(title: String, text: String) {
+        val channelId = "geoguard_alerts"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getSystemService(NotificationManager::class.java).createNotificationChannel(
+                NotificationChannel(channelId, "Hinweise", NotificationManager.IMPORTANCE_HIGH)
+            )
+        }
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setAutoCancel(true)
+            .build()
+        try {
+            NotificationManagerCompat.from(this).notify(99, notification)
+        } catch (se: SecurityException) {
+            // POST_NOTIFICATIONS nicht erteilt – Alarm trotzdem via Vibration/Toast.
+        }
     }
 
     private fun providerLabel(p: String?): String = when (p) {
@@ -331,6 +393,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     override fun onDestroy() {
         super.onDestroy()
         stopUpdates()
+        tts?.shutdown()
         webView.destroy()
     }
 

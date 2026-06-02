@@ -66,13 +66,17 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2
-          name: GeoGuard v1.2
+          tag_name: v1.3
+          name: GeoGuard v1.3
           body: |
-            GeoGuard – GPS, Kompass, Karte, Navigation & GNSS-Status.
+            GeoGuard – GPS, Kompass, Karte, Navigation, GNSS & mehr.
             Lade unten **GeoGuard.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            **Wichtig:** Diese Version ist mit einem festen Schlüssel signiert. Falls eine
-            ältere GeoGuard-Version installiert ist, diese bitte **einmal deinstallieren**
-            und v1.2 neu installieren. Ab dann funktionieren Updates ganz normal.
+            Neu in v1.3: Offline-Karten (Kacheln herunterladen), Touren-Verlauf mit
+            Höhenprofil & GPX-Import, Trip-Computer, UTM/MGRS/Plus-Code, echter Norden
+            (Missweisungs-Korrektur), Sonne/Mond, QR-Code, Ankunfts-Alarm, Sprach-Hinweise,
+            Rotlicht-Nachtmodus und Tacho-HUD.
+
+            Hinweis: Falls eine v1.0/v1.1 installiert ist, diese **einmal deinstallieren**
+            (ab v1.2 funktionieren Updates dank festem Signaturschlüssel normal).
           files: android/GeoGuard.apk

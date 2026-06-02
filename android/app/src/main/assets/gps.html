@@ -2,128 +2,128 @@
 <html lang="de" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
-<title>GeoGuard – GPS, Kompass &amp; Navigation</title>
+<title>GeoGuard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0f172a" />
 <link rel="stylesheet" href="leaflet/leaflet.css" />
 <script src="leaflet/leaflet.js"></script>
+<script src="qrcode.js"></script>
 <style>
   :root{
     --primary:#0ea5e9; --secondary:#6366f1; --success:#10b981;
     --warning:#f59e0b; --danger:#ef4444;
     --bg-body:#0f172a; --bg-card:#1e293b; --bg-soft:#0b1220;
     --text-main:#f8fafc; --text-muted:#94a3b8; --border:#334155;
-    --radius:18px; --nav-h:64px;
+    --radius:18px; --nav-h:62px;
   }
-  [data-theme="light"]{
-    --bg-body:#f1f5f9; --bg-card:#ffffff; --bg-soft:#e2e8f0;
-    --text-main:#0f172a; --text-muted:#64748b; --border:#cbd5e1;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  [data-theme="light"]{--bg-body:#f1f5f9;--bg-card:#fff;--bg-soft:#e2e8f0;--text-main:#0f172a;--text-muted:#64748b;--border:#cbd5e1;}
+  [data-theme="night"]{--primary:#ff3b30;--secondary:#ff3b30;--success:#ff6b35;--warning:#ff3b30;--danger:#ff3b30;
+    --bg-body:#000;--bg-card:#160000;--bg-soft:#0a0000;--text-main:#ff4d4d;--text-muted:#a30000;--border:#3a0000;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:var(--bg-body); color:var(--text-main);
-    display:flex; flex-direction:column; height:100vh; overflow:hidden;
-  }
-  .topbar{display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; border-bottom:1px solid var(--border);}
-  .logo{width:36px;height:36px;border-radius:10px;flex:none;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:19px;}
-  .title{font-size:1.1rem;font-weight:800;}
-  .status-pill{margin-left:auto;font-size:.7rem;font-weight:700;padding:5px 10px;border-radius:999px;background:#33415544;border:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-body);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+  .topbar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--border);}
+  .logo{width:34px;height:34px;border-radius:10px;flex:none;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .title{font-size:1.05rem;font-weight:800;}
+  .status-pill{margin-left:auto;font-size:.68rem;font-weight:700;padding:5px 9px;border-radius:999px;background:#33415544;border:1px solid var(--border);display:flex;align-items:center;gap:6px;}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);}
-  .dot.live{background:var(--success);animation:pulse 1.6s infinite;}
-  .dot.warn{background:var(--warning);} .dot.err{background:var(--danger);}
+  .dot.live{background:var(--success);animation:pulse 1.6s infinite;} .dot.warn{background:var(--warning);} .dot.err{background:var(--danger);}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5);}70%{box-shadow:0 0 0 7px rgba(16,185,129,0);}100%{box-shadow:0 0 0 0 transparent;}}
 
-  .pages{flex:1; position:relative; overflow:hidden;}
-  .page{position:absolute; inset:0; overflow-y:auto; padding:16px 16px 20px; display:none;}
+  .pages{flex:1;position:relative;overflow:hidden;}
+  .page{position:absolute;inset:0;overflow-y:auto;padding:14px 14px 20px;display:none;}
   .page.active{display:block;}
-  #page-map.active{display:flex; flex-direction:column; padding:0;}
+  #page-map.active{display:flex;flex-direction:column;padding:0;}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;}
+  .section-title{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 2px 10px;display:flex;justify-content:space-between;align-items:center;}
 
-  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;margin-bottom:13px;}
-  .section-title{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 2px 10px;}
-
-  /* Kompass */
   .compass-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
-  .compass{position:relative;width:220px;height:220px;}
+  .compass{position:relative;width:210px;height:210px;}
   .rose{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#1e293b,#0b1220 25%,#1e293b 50%,#0b1220 75%,#1e293b);border:2px solid var(--border);box-shadow:inset 0 0 40px rgba(0,0,0,.6);transition:transform .12s linear;}
   [data-theme="light"] .rose{background:conic-gradient(from 0deg,#e2e8f0,#cbd5e1 25%,#e2e8f0 50%,#cbd5e1 75%,#e2e8f0);}
+  [data-theme="night"] .rose{background:#0a0000;}
   .ticks{position:absolute;inset:0;}
-  .tick{position:absolute;left:50%;top:50%;width:2px;height:110px;transform-origin:bottom center;}
+  .tick{position:absolute;left:50%;top:50%;width:2px;height:105px;transform-origin:bottom center;}
   .tick i{display:block;width:2px;height:9px;background:var(--text-muted);margin:0 auto;}
-  .tick.major i{height:16px;width:3px;background:var(--text-main);}
-  .card-letter{position:absolute;left:50%;top:50%;transform-origin:center -80px;font-weight:800;font-size:14px;}
+  .tick.major i{height:15px;width:3px;background:var(--text-main);}
+  .card-letter{position:absolute;left:50%;top:50%;transform-origin:center -76px;font-weight:800;font-size:14px;}
   .N{color:var(--danger);}
   .needle{position:absolute;left:50%;top:8px;bottom:8px;width:0;transform-origin:bottom center;transform:translateX(-50%);}
   .needle::before,.needle::after{content:"";position:absolute;left:-7px;width:14px;}
   .needle::before{top:0;height:50%;background:linear-gradient(var(--danger),#7f1d1d);clip-path:polygon(50% 0,100% 100%,0 100%);}
   .needle::after{bottom:0;height:50%;background:linear-gradient(#1e293b,#334155);clip-path:polygon(0 0,100% 0,50% 100%);}
-  .hub{position:absolute;left:50%;top:50%;width:16px;height:16px;border-radius:50%;background:var(--text-main);transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--bg-soft);}
-  .heading-deg{font-size:2.2rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
-  .heading-card{font-size:.95rem;color:var(--primary);font-weight:700;letter-spacing:2px;}
+  .sun-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:18px;line-height:1;transform-origin:center;transition:transform .3s;pointer-events:none;text-align:center;}
+  .hub{position:absolute;left:50%;top:50%;width:15px;height:15px;border-radius:50%;background:var(--text-main);transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--bg-soft);}
+  .heading-deg{font-size:2.1rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
+  .heading-card{font-size:.9rem;color:var(--primary);font-weight:700;letter-spacing:2px;}
 
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .metric{background:var(--bg-soft);border:1px solid var(--border);border-radius:14px;padding:11px;}
-  .metric .label{font-size:.64rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;}
-  .metric .value{font-size:1.1rem;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;word-break:break-word;}
-  .metric .unit{font-size:.7rem;color:var(--text-muted);font-weight:600;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .metric{background:var(--bg-soft);border:1px solid var(--border);border-radius:13px;padding:10px;}
+  .metric .label{font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;}
+  .metric .value{font-size:1.05rem;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums;word-break:break-word;}
+  .metric .unit{font-size:.68rem;color:var(--text-muted);font-weight:600;}
   .full{grid-column:1 / -1;}
   .acc-bar{height:8px;border-radius:999px;background:var(--bg-body);overflow:hidden;margin-top:8px;border:1px solid var(--border);}
   .acc-fill{height:100%;width:0;border-radius:999px;transition:width .4s, background .4s;}
-  .src-tag{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--bg-body);border:1px solid var(--border);color:var(--text-muted);}
+  .src-tag{font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:999px;background:var(--bg-body);border:1px solid var(--border);color:var(--text-muted);}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;}
 
-  button{font-family:inherit;border:none;border-radius:13px;padding:13px;font-weight:700;font-size:.9rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:transform .08s;}
+  button{font-family:inherit;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:.88rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .08s;}
   button:active{transform:scale(.97);}
   .b-primary{background:linear-gradient(135deg,var(--primary),var(--secondary));}
-  .b-soft{background:#334155;} [data-theme="light"] .b-soft{background:#64748b;}
+  .b-soft{background:#334155;} [data-theme="light"] .b-soft{background:#64748b;} [data-theme="night"] .b-soft{background:#3a0000;}
   .b-danger{background:linear-gradient(135deg,var(--danger),#b91c1c);}
   .b-success{background:linear-gradient(135deg,var(--success),#047857);}
   .b-warn{background:linear-gradient(135deg,var(--warning),#b45309);}
-  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px;}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:4px;}
+  .btn-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
   .full-btn{grid-column:1 / -1;}
-  input[type=text],input[type=number]{width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text-main);font-size:1rem;font-family:inherit;}
-  label.fld{display:block;font-size:.68rem;color:var(--text-muted);margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
+  input,select{width:100%;padding:11px;border-radius:11px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text-main);font-size:1rem;font-family:inherit;}
+  label.fld{display:block;font-size:.66rem;color:var(--text-muted);margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
 
-  /* Map */
   #map{flex:1;width:100%;background:#0b1220;}
-  .map-overlay{position:absolute;top:8px;left:8px;right:8px;z-index:500;display:flex;gap:8px;pointer-events:none;}
-  .map-overlay .chip{pointer-events:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:8px 10px;font-size:.72rem;font-weight:700;display:flex;flex-direction:column;gap:1px;box-shadow:0 4px 14px rgba(0,0,0,.3);}
-  .chip .k{color:var(--text-muted);font-size:.58rem;text-transform:uppercase;letter-spacing:.4px;}
-  .map-controls{position:absolute;bottom:14px;left:10px;right:10px;z-index:500;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .map-overlay{position:absolute;top:8px;left:8px;right:8px;z-index:500;display:flex;gap:8px;pointer-events:none;flex-wrap:wrap;}
+  .map-overlay .chip{pointer-events:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:11px;padding:7px 9px;font-size:.7rem;font-weight:700;display:flex;flex-direction:column;gap:1px;}
+  .chip .k{color:var(--text-muted);font-size:.55rem;text-transform:uppercase;}
+  .map-controls{position:absolute;bottom:12px;left:10px;right:10px;z-index:500;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;}
+  .map-controls button{padding:11px 6px;font-size:.78rem;}
 
-  /* Ziel-Pfeil */
-  .target-arrow{width:200px;height:200px;margin:6px auto;position:relative;display:flex;align-items:center;justify-content:center;}
+  .target-arrow{width:190px;height:190px;margin:4px auto;position:relative;display:flex;align-items:center;justify-content:center;}
   .ta-ring{position:absolute;inset:0;border-radius:50%;border:3px dashed var(--border);}
-  .ta-pointer{font-size:84px;line-height:1;transition:transform .15s linear;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));}
-  .wp-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg-soft);}
-  .wp-item .nm{font-weight:700;font-size:.9rem;} .wp-item .co{font-size:.7rem;color:var(--text-muted);}
-  .wp-item button{padding:8px 10px;font-size:.75rem;}
+  .ta-pointer{font-size:80px;line-height:1;transition:transform .15s linear;}
+  .wp-item{display:flex;align-items:center;gap:9px;padding:9px;border:1px solid var(--border);border-radius:11px;margin-bottom:8px;background:var(--bg-soft);}
+  .wp-item .nm{font-weight:700;font-size:.88rem;} .wp-item .co{font-size:.68rem;color:var(--text-muted);}
+  .wp-item button{padding:8px 9px;font-size:.72rem;}
 
-  /* Satelliten */
-  .sat-bars{display:flex;align-items:flex-end;gap:3px;height:120px;padding:8px;background:var(--bg-soft);border-radius:12px;border:1px solid var(--border);overflow-x:auto;}
-  .sat-bar{flex:0 0 12px;background:var(--border);border-radius:3px 3px 0 0;min-height:3px;position:relative;}
+  .sat-bars{display:flex;align-items:flex-end;gap:3px;height:110px;padding:8px;background:var(--bg-soft);border-radius:11px;border:1px solid var(--border);overflow-x:auto;}
+  .sat-bar{flex:0 0 11px;background:var(--border);border-radius:3px 3px 0 0;min-height:3px;}
   .sat-bar.used{background:linear-gradient(var(--success),#047857);}
-  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:.7rem;color:var(--text-muted);}
-  .legend span{display:flex;align-items:center;gap:5px;}
-  .sw{width:10px;height:10px;border-radius:3px;}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px;font-size:.68rem;color:var(--text-muted);}
+  .legend span{display:flex;align-items:center;gap:5px;} .sw{width:10px;height:10px;border-radius:3px;}
 
-  .switch{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
-  .switch:last-child{border-bottom:none;}
-  .switch .t{font-weight:600;font-size:.9rem;} .switch .d{font-size:.7rem;color:var(--text-muted);margin-top:2px;}
-  .toggle{width:50px;height:28px;border-radius:999px;background:var(--border);position:relative;flex:none;transition:background .2s;cursor:pointer;}
+  .switch{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);} .switch:last-child{border-bottom:none;}
+  .switch .t{font-weight:600;font-size:.88rem;} .switch .d{font-size:.68rem;color:var(--text-muted);margin-top:2px;}
+  .toggle{width:48px;height:27px;border-radius:999px;background:var(--border);position:relative;flex:none;transition:background .2s;cursor:pointer;}
   .toggle.on{background:var(--success);}
-  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s;}
-  .toggle.on::after{transform:translateX(22px);}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:transform .2s;}
+  .toggle.on::after{transform:translateX(21px);}
   .seg{display:flex;background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
-  .seg button{flex:1;background:transparent;color:var(--text-muted);border-radius:0;padding:9px;font-size:.8rem;}
+  .seg button{flex:1;background:transparent;color:var(--text-muted);border-radius:0;padding:9px 4px;font-size:.78rem;}
   .seg button.sel{background:var(--primary);color:#fff;}
 
-  /* Bottom nav */
   .nav{height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:flex;border-top:1px solid var(--border);background:var(--bg-card);}
-  .nav button{flex:1;background:none;color:var(--text-muted);flex-direction:column;gap:2px;font-size:.62rem;font-weight:600;border-radius:0;padding:8px 0;}
-  .nav button.sel{color:var(--primary);}
-  .nav .ic{font-size:19px;line-height:1;}
-  .hint{font-size:.7rem;color:var(--text-muted);text-align:center;margin-top:10px;line-height:1.5;}
+  .nav button{flex:1;background:none;color:var(--text-muted);flex-direction:column;gap:2px;font-size:.56rem;font-weight:600;border-radius:0;padding:7px 0;}
+  .nav button.sel{color:var(--primary);} .nav .ic{font-size:18px;line-height:1;}
+  .hint{font-size:.68rem;color:var(--text-muted);text-align:center;margin-top:9px;line-height:1.5;}
+
+  /* Overlay (QR / HUD) */
+  .overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;}
+  .overlay.show{display:flex;}
+  #qrBox{background:#fff;padding:14px;border-radius:14px;} #qrBox img,#qrBox canvas{display:block;width:240px;height:240px;image-rendering:pixelated;}
+  .hud-speed{font-size:26vw;font-weight:800;line-height:.9;font-variant-numeric:tabular-nums;color:var(--success);}
+  .hud-sub{font-size:6vw;color:var(--text-muted);font-weight:700;letter-spacing:2px;}
+  .overlay .closehint{position:absolute;bottom:30px;font-size:.8rem;color:#94a3b8;}
+  canvas.profile{width:100%;height:130px;background:var(--bg-soft);border:1px solid var(--border);border-radius:11px;}
 </style>
 </head>
 <body>
@@ -134,7 +134,7 @@
   </div>
 
   <div class="pages">
-    <!-- ===== DASHBOARD ===== -->
+    <!-- DASHBOARD -->
     <div class="page active" id="page-dash">
       <div class="card">
         <div class="compass-wrap">
@@ -142,12 +142,13 @@
             <div id="rose" class="rose"></div>
             <div id="ticks" class="ticks"></div>
             <div class="needle"></div>
+            <div id="sunDot" class="sun-dot" style="display:none">☀️</div>
             <div class="hub"></div>
           </div>
           <div style="text-align:center">
             <div class="heading-deg"><span id="hdgDeg">--</span>°</div>
             <div class="heading-card" id="hdgCard">RICHTUNG</div>
-            <div class="hint" id="hdgSource" style="margin-top:2px">Sensor: –</div>
+            <div class="hint" id="hdgSource">Sensor: –</div>
           </div>
         </div>
       </div>
@@ -169,24 +170,45 @@
           <div class="metric"><div class="label">⛰️ Höhe</div><div class="value"><span id="alt">--</span> <span class="unit" id="altU">m</span></div></div>
           <div class="metric"><div class="label">🚀 Tempo</div><div class="value"><span id="spd">--</span> <span class="unit" id="spdU">km/h</span></div></div>
           <div class="metric"><div class="label">🧭 Kurs (GPS)</div><div class="value"><span id="course">--</span> <span class="unit">°</span></div></div>
-          <div class="metric"><div class="label">📡 Quelle</div><div class="value" id="provider" style="font-size:.9rem">–</div></div>
-          <div class="metric full">
-            <div class="label">🗺️ Position (DMS) &nbsp;<span class="src-tag" id="ts">–</span></div>
-            <div class="value" id="dms" style="font-size:.9rem">--</div>
-          </div>
+          <div class="metric"><div class="label">📡 Quelle</div><div class="value" id="provider" style="font-size:.86rem">–</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Koordinaten-Formate <span class="src-tag" id="ts">–</span></div>
+        <div class="grid">
+          <div class="metric full"><div class="label">DMS (Grad/Min/Sek)</div><div class="value mono" id="dms">--</div></div>
+          <div class="metric full"><div class="label">UTM</div><div class="value mono" id="utm">--</div></div>
+          <div class="metric"><div class="label">MGRS</div><div class="value mono" id="mgrs">--</div></div>
+          <div class="metric"><div class="label">Plus Code</div><div class="value mono" id="plus">--</div></div>
+        </div>
+        <div class="btn-row3" style="margin-top:10px">
+          <button id="copyBtn" class="b-soft">⧉ Kopieren</button>
+          <button id="qrBtn" class="b-soft">▦ QR</button>
+          <button id="shareBtn2" class="b-success">↗ Teilen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Himmel (Sonne &amp; Mond)</div>
+        <div class="grid">
+          <div class="metric"><div class="label">🌅 Sonnenaufgang</div><div class="value" id="sunrise">--</div></div>
+          <div class="metric"><div class="label">🌇 Sonnenuntergang</div><div class="value" id="sunset">--</div></div>
+          <div class="metric"><div class="label">☀️ Sonne (Az/Höhe)</div><div class="value" id="sunpos" style="font-size:.9rem">--</div></div>
+          <div class="metric"><div class="label">🌙 Mondphase</div><div class="value" id="moon" style="font-size:.9rem">--</div></div>
         </div>
       </div>
 
       <div class="btn-row">
         <button id="startBtn" class="b-primary">▶︎ Tracking starten</button>
         <button id="stopBtn" class="b-danger">■ Stoppen</button>
-        <button id="copyBtn" class="b-soft">⧉ Koordinaten</button>
         <button id="calibBtn" class="b-soft">🧭 Kalibrieren</button>
+        <button id="hudBtn" class="b-soft">🖥 Tacho-HUD</button>
       </div>
       <div class="hint" id="hint">Tippe auf <b>Tracking starten</b> und erlaube den Standort.</div>
     </div>
 
-    <!-- ===== KARTE ===== -->
+    <!-- KARTE -->
     <div class="page" id="page-map">
       <div style="position:relative;flex:1;display:flex">
         <div id="map"></div>
@@ -194,27 +216,26 @@
           <div class="chip"><span class="k">Strecke</span><span id="trkDist">0,00 km</span></div>
           <div class="chip"><span class="k">Dauer</span><span id="trkTime">00:00</span></div>
           <div class="chip"><span class="k">Ø / Max</span><span id="trkSpd">– / –</span></div>
+          <div class="chip"><span class="k">Offline-Kacheln</span><span id="tileCount">0</span></div>
         </div>
         <div class="map-controls">
-          <button id="recBtn" class="b-success">⏺ Aufzeichnen</button>
-          <button id="centerBtn" class="b-soft">🎯 Zentrieren</button>
+          <button id="recBtn" class="b-success">⏺ Rec</button>
+          <button id="centerBtn" class="b-soft">🎯 Mitte</button>
+          <button id="dlBtn" class="b-primary">⬇ Offline</button>
           <button id="exportBtn" class="b-warn">⬇ GPX</button>
         </div>
       </div>
     </div>
 
-    <!-- ===== ZIEL / NAVIGATION ===== -->
+    <!-- ZIEL -->
     <div class="page" id="page-nav">
       <div class="card">
         <div class="section-title">Navigation zum Ziel</div>
-        <div class="target-arrow">
-          <div class="ta-ring"></div>
-          <div class="ta-pointer" id="taPointer">⬆️</div>
-        </div>
+        <div class="target-arrow"><div class="ta-ring"></div><div class="ta-pointer" id="taPointer">⬆️</div></div>
         <div class="grid">
           <div class="metric"><div class="label">📏 Entfernung</div><div class="value"><span id="navDist">--</span> <span class="unit" id="navDistU">m</span></div></div>
           <div class="metric"><div class="label">🧭 Peilung</div><div class="value"><span id="navBear">--</span> <span class="unit">°</span></div></div>
-          <div class="metric full"><div class="label">🎯 Ziel</div><div class="value" id="navTarget" style="font-size:.85rem">Kein Ziel gesetzt</div></div>
+          <div class="metric full"><div class="label">🎯 Ziel</div><div class="value" id="navTarget" style="font-size:.84rem">Kein Ziel gesetzt</div></div>
         </div>
       </div>
       <div class="card">
@@ -225,7 +246,17 @@
         <input type="number" id="inLon" inputmode="decimal" step="any" placeholder="z. B. 13.4050" />
         <div class="btn-row" style="margin-top:12px">
           <button id="setTargetBtn" class="b-primary">🎯 Als Ziel setzen</button>
-          <button id="saveWpBtn" class="b-soft">＋ Aktuellen Ort speichern</button>
+          <button id="saveWpBtn" class="b-soft">＋ Ort speichern</button>
+        </div>
+        <div class="switch" style="margin-top:8px">
+          <div><div class="t">🔔 Ankunfts-Alarm</div><div class="d">Vibrieren bei Annäherung</div></div>
+          <div class="toggle" id="geoTgl"></div>
+        </div>
+        <label class="fld" style="margin-top:8px">Alarm-Radius (m)</label>
+        <input type="number" id="geoRad" inputmode="numeric" value="50" />
+        <div class="switch" style="margin-top:8px">
+          <div><div class="t">🗣 Sprach-Hinweise</div><div class="d">Ansage von Entfernung &amp; Richtung</div></div>
+          <div class="toggle" id="voiceTgl"></div>
         </div>
       </div>
       <div class="card">
@@ -234,15 +265,39 @@
       </div>
     </div>
 
-    <!-- ===== SATELLITEN ===== -->
+    <!-- TOUREN -->
+    <div class="page" id="page-tours">
+      <div class="card">
+        <div class="section-title">Aktuelle Tour</div>
+        <div class="grid">
+          <div class="metric"><div class="label">Strecke</div><div class="value"><span id="tcDist">--</span></div></div>
+          <div class="metric"><div class="label">Bewegungszeit</div><div class="value" id="tcMove">--</div></div>
+          <div class="metric"><div class="label">⬆ Aufstieg</div><div class="value"><span id="tcUp">--</span> <span class="unit" id="upU">m</span></div></div>
+          <div class="metric"><div class="label">⬇ Abstieg</div><div class="value"><span id="tcDown">--</span> <span class="unit" id="downU">m</span></div></div>
+        </div>
+        <div class="label" style="margin:12px 2px 6px;font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Höhenprofil</div>
+        <canvas class="profile" id="profile" width="600" height="130"></canvas>
+        <div class="btn-row" style="margin-top:10px">
+          <button id="saveTourBtn" class="b-primary">💾 Tour speichern</button>
+          <button id="importBtn" class="b-soft">📂 GPX importieren</button>
+        </div>
+        <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
+      </div>
+      <div class="card">
+        <div class="section-title">Gespeicherte Touren</div>
+        <div id="tourList"><div class="hint">Noch keine Touren gespeichert.</div></div>
+      </div>
+    </div>
+
+    <!-- SATELLITEN -->
     <div class="page" id="page-sat">
       <div class="card">
-        <div class="section-title">GNSS-Status (sichere Positionierung)</div>
+        <div class="section-title">GNSS-Status</div>
         <div class="grid">
           <div class="metric"><div class="label">🛰️ Sichtbar</div><div class="value" id="satTotal">--</div></div>
-          <div class="metric"><div class="label">✅ Genutzt (Fix)</div><div class="value" id="satUsed">--</div></div>
+          <div class="metric"><div class="label">✅ Genutzt</div><div class="value" id="satUsed">--</div></div>
           <div class="metric"><div class="label">📶 Ø Signal</div><div class="value"><span id="satCn0">--</span> <span class="unit">dBHz</span></div></div>
-          <div class="metric"><div class="label">🌐 Systeme</div><div class="value" id="satSys" style="font-size:.85rem">–</div></div>
+          <div class="metric"><div class="label">🌐 Systeme</div><div class="value" id="satSys" style="font-size:.82rem">–</div></div>
         </div>
       </div>
       <div class="card">
@@ -252,50 +307,63 @@
           <span><i class="sw" style="background:linear-gradient(var(--success),#047857)"></i> genutzt</span>
           <span><i class="sw" style="background:var(--border)"></i> sichtbar</span>
         </div>
-        <div class="hint" id="satHint">GNSS-Details stehen nur in der nativen App (APK) und im Freien zur Verfügung.</div>
+        <div class="hint" id="satHint">GNSS-Details nur in der nativen App (APK) und im Freien.</div>
       </div>
     </div>
 
-    <!-- ===== MEHR / EINSTELLUNGEN ===== -->
+    <!-- MEHR -->
     <div class="page" id="page-more">
       <div class="card">
         <div class="section-title">Notfall</div>
-        <button id="sosBtn" class="b-danger full-btn" style="font-size:1rem;padding:16px">🆘 SOS – Standort per SMS senden</button>
-        <button id="shareBtn" class="b-success full-btn" style="margin-top:10px">↗ Standort teilen</button>
+        <button id="sosBtn" class="b-danger full-btn" style="font-size:1rem;padding:15px">🆘 SOS – Standort per SMS</button>
+        <button id="shareBtn" class="b-success full-btn" style="margin-top:9px">↗ Standort teilen</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Nordreferenz</div>
+        <div class="seg" id="northSeg">
+          <button data-n="magnetic" class="sel">Magnetisch</button>
+          <button data-n="true">Geografisch (echt)</button>
+        </div>
+        <div class="hint" id="declHint" style="margin-top:8px">Missweisung: –</div>
       </div>
       <div class="card">
         <div class="section-title">Einheiten</div>
         <div class="seg" id="unitSeg">
-          <button data-u="metric" class="sel">Metrisch (km, m)</button>
-          <button data-u="imperial">Imperial (mi, ft)</button>
+          <button data-u="metric" class="sel">Metrisch</button>
+          <button data-u="imperial">Imperial</button>
         </div>
       </div>
       <div class="card">
-        <div class="section-title">Einstellungen</div>
-        <div class="switch">
-          <div><div class="t">Helles Design</div><div class="d">Heller Hintergrund</div></div>
-          <div class="toggle" id="themeTgl"></div>
-        </div>
-        <div class="switch">
-          <div><div class="t">Bildschirm anlassen</div><div class="d">Verhindert das Abdunkeln</div></div>
-          <div class="toggle" id="wakeTgl"></div>
-        </div>
-        <div class="switch">
-          <div><div class="t">Hintergrund-Tracking</div><div class="d">Position auch bei geschlossener App (nur APK)</div></div>
-          <div class="toggle" id="bgTgl"></div>
-        </div>
+        <div class="section-title">Darstellung &amp; Einstellungen</div>
+        <div class="switch"><div><div class="t">Helles Design</div></div><div class="toggle" id="themeTgl"></div></div>
+        <div class="switch"><div><div class="t">🔴 Nachtmodus (Rotlicht)</div><div class="d">Schont die Nachtsicht</div></div><div class="toggle" id="nightTgl"></div></div>
+        <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
+        <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
-      <div class="hint">GeoGuard v1.1 · offline · ohne Tracking/Werbung</div>
+      <div class="hint">GeoGuard v1.3 · offline · ohne Tracking/Werbung</div>
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
   <div class="nav" id="nav">
     <button data-tab="dash" class="sel"><span class="ic">🧭</span>Dashboard</button>
     <button data-tab="map"><span class="ic">🗺️</span>Karte</button>
     <button data-tab="nav"><span class="ic">🎯</span>Ziel</button>
-    <button data-tab="sat"><span class="ic">🛰️</span>Satelliten</button>
+    <button data-tab="tours"><span class="ic">📈</span>Touren</button>
+    <button data-tab="sat"><span class="ic">🛰️</span>Sat</button>
     <button data-tab="more"><span class="ic">⚙️</span>Mehr</button>
+  </div>
+
+  <!-- QR Overlay -->
+  <div class="overlay" id="qrOverlay">
+    <div id="qrBox"></div>
+    <div style="color:#f8fafc;font-weight:700" id="qrText">–</div>
+    <div class="closehint">Zum Schließen tippen</div>
+  </div>
+  <!-- HUD Overlay -->
+  <div class="overlay" id="hudOverlay">
+    <div class="hud-speed"><span id="hudSpeed">0</span></div>
+    <div class="hud-sub"><span id="hudUnit">km/h</span> · <span id="hudHdg">–</span></div>
+    <div class="closehint">Zum Schließen tippen</div>
   </div>
 
 <script src="app.js"></script>
