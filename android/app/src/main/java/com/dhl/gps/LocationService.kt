@@ -67,7 +67,7 @@ class LocationService : Service() {
         val pending = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), flags)
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("GeoGuard aktiv")
+            .setContentTitle("GeoPilot aktiv")
             .setContentText("Standort wird im Hintergrund verfolgt")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)

@@ -211,7 +211,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
                     val conn = URL(url).openConnection() as HttpURLConnection
                     conn.connectTimeout = 15000
                     conn.readTimeout = 20000
-                    conn.setRequestProperty("User-Agent", "GeoGuard/1.4 (Android)")
+                    conn.setRequestProperty("User-Agent", "GeoPilot/1.8 (Android)")
                     conn.setRequestProperty("Accept", "application/json")
                     status = conn.responseCode
                     val stream = if (status in 200..299) conn.inputStream else conn.errorStream

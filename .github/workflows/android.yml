@@ -53,30 +53,29 @@ jobs:
           exit 1
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk GeoGuard.apk
+        run: cp app/build/outputs/apk/release/app-release.apk GeoPilot.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GeoGuard-apk
-          path: android/GeoGuard.apk
+          name: GeoPilot-apk
+          path: android/GeoPilot.apk
           if-no-files-found: error
 
       - name: Publish APK as GitHub Release
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.7
-          name: GeoGuard v1.7
+          tag_name: v1.8
+          name: GeoPilot v1.8
           body: |
-            GeoGuard – Qualitäts- & Bedienungs-Update.
-            Lade unten **GeoGuard.apk** herunter und installiere sie auf deinem Android-Gerät.
+            GeoPilot – GPS, Navigation, echtes Flugradar & mehr (vormals GeoGuard).
+            Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v1.7: übersichtlicher & robuster – schwebende Hinweise (überall
-            sichtbar), Online-/Offline-Anzeige mit klaren Hinweisen für Live-Funktionen,
-            Hilfe-/Erste-Schritte-Overlay (Logo antippen), Datenschutz-Infos,
-            Einstellungen-Reset und diverse Fehlerkorrekturen.
+            Neu in v1.8: Flugradar mit **echten ADS-B-Live-Daten** (airplanes.live +
+            OpenSky) – Rufzeichen, Kennzeichen, Flugzeugtyp, Höhe, Tempo, Steig-/Sinkrate,
+            Squawk inkl. Notfall-Hervorhebung, Entfernung & Verfolgen einzelner Flüge.
+            Außerdem: neuer Name **GeoPilot** und neues App-Icon.
 
-            Hinweis: Falls eine v1.0/v1.1 installiert ist, diese **einmal deinstallieren**
-            (ab v1.2 funktionieren Updates dank festem Signaturschlüssel normal).
-          files: android/GeoGuard.apk
+            Hinweis: Die App-ID bleibt gleich – ein Update über v1.2+ funktioniert normal.
+          files: android/GeoPilot.apk
