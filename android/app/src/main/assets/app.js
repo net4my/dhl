@@ -220,6 +220,8 @@
     onMapLocation(p); recordPoint(p); updateNavArrow(); checkGeofence();
     maybeWeather(p.lat, p.lon); routeProgress();
     updateTrackLive(p); updateTrackMap(p); maybeReverse(p.lat, p.lon); updateCompassMap(p); updateQuickTiles(p);
+    if (typeof ensureYouFlug === "function") ensureYouFlug();
+    if (pendingFlugCenter && flugMap) { pendingFlugCenter = false; flugMap.setView([p.lat, p.lon], Math.max(flugMap.getZoom(), 9)); loadFlights(); }
   }
   function updateQuickTiles(p) {
     if ($("qSpeed")) $("qSpeed").textContent = (p.speed != null && !isNaN(p.speed)) ? fmtSpeed(p.speed) : "0";
@@ -348,7 +350,7 @@
     if (mapStyle === "terrain") return L.tileLayer(TILE_TOPO, { maxZoom: 17 });
     var t = document.documentElement.getAttribute("data-theme");
     if (t === "dark" || t === "night") return L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", { maxZoom: 20, subdomains: "abcd" });
-    return new OfflineLayer(TILE_URL, { maxZoom: 19 });
+    return L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", { maxZoom: 20, subdomains: "abcd" });
   }
   function swapBase(m, old, factory) { if (!m) return null; if (old) m.removeLayer(old); var nl = (factory || makeBaseLayer)(); nl.addTo(m); if (nl.bringToBack) nl.bringToBack(); return nl; }
   function refreshBases() {
@@ -1039,7 +1041,7 @@
   var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 8000, flugAutoOn = true, flugVisible = false;
   var followFlugHex = null, lastPlanes = [], flugFilter = "all", flugQuery = "", trailPts = [], acCache = {}, routeCache = {}, detailHex = null, flugRouteLayer = null;
   var flugMarkers = {}, flugAnim = null, airportsOn = false, airportLayer = null, airportTimer = null;
-  var labelsOn = LS.getItem("gg_flbl") === "1";
+  var labelsOn = LS.getItem("gg_flbl") === "1", flugMsg = "", youFlugMarker = null, pendingFlugCenter = false;
   function makeLabel(p) {
     if (!labelsOn) return null;
     var alt = p.alt != null ? (p.alt >= 18000 ? "FL" + Math.round(p.alt / 100) : Math.round(p.alt).toLocaleString("de-DE") + "ft") : "";
@@ -1084,19 +1086,28 @@
   function knKmh(kn) { return kn != null ? Math.round(kn * 1.852) : null; }
   function loadFlights() {
     if (!flugMap) return;
-    if (navigator.onLine === false) { $("flugCount").textContent = "–"; $("flugList").innerHTML = '<div class="hint">📡 Offline – Flugradar braucht Internet.</div>'; return; }
+    if (navigator.onLine === false) { $("flugCount").textContent = "–"; flugMsg = "📡 Offline – Flugradar braucht Internet."; $("flugList").innerHTML = '<div class="hint">' + flugMsg + '</div>'; return; }
     var c = flugMap.getCenter(), b = flugMap.getBounds();
     var radiusNm = Math.min(250, Math.max(30, Math.round(haversine(c.lat, c.lng, b.getNorth(), c.lng) / 1852 * 1.1)));
     $("flugCount").textContent = "…";
-    httpJson("https://api.airplanes.live/v2/point/" + c.lat.toFixed(4) + "/" + c.lng.toFixed(4) + "/" + radiusNm).then(function (j) {
+    httpGet("https://api.airplanes.live/v2/point/" + c.lat.toFixed(4) + "/" + c.lng.toFixed(4) + "/" + radiusNm).then(function (r) {
+      var j = null; try { j = JSON.parse(r.body); } catch (e) {}
       if (j && j.ac && j.ac.length) {
-        renderFlights(j.ac.map(function (a) { return { hex: a.hex, flight: (a.flight || "").trim() || a.r || a.hex, reg: a.r || "", type: a.t || "", lat: a.lat, lon: a.lon, alt: (typeof a.alt_baro === "number" ? a.alt_baro : null), gsKmh: knKmh(a.gs), trk: a.track, squawk: a.squawk || "", rate: (a.baro_rate != null ? a.baro_rate : null), onground: false }; }));
-      } else { openSkyFallback(b); }
+        flugMsg = ""; renderFlights(j.ac.map(function (a) { return { hex: a.hex, flight: (a.flight || "").trim() || a.r || a.hex, reg: a.r || "", type: a.t || "", lat: a.lat, lon: a.lon, alt: (typeof a.alt_baro === "number" ? a.alt_baro : null), gsKmh: knKmh(a.gs), trk: a.track, squawk: a.squawk || "", rate: (a.baro_rate != null ? a.baro_rate : null), onground: false }; }));
+        return;
+      }
+      // Primärquelle leer oder nicht erreichbar → OpenSky versuchen
+      openSkyFallback(b, (j && j.ac) ? "empty" : "error");
     });
   }
-  function openSkyFallback(b) {
-    httpJson("https://opensky-network.org/api/states/all?lamin=" + b.getSouth().toFixed(4) + "&lomin=" + b.getWest().toFixed(4) + "&lamax=" + b.getNorth().toFixed(4) + "&lomax=" + b.getEast().toFixed(4)).then(function (j) {
-      if (!j || !j.states) { lastPlanes = []; drawFlights(false); return; }
+  function openSkyFallback(b, primary) {
+    httpGet("https://opensky-network.org/api/states/all?lamin=" + b.getSouth().toFixed(4) + "&lomin=" + b.getWest().toFixed(4) + "&lamax=" + b.getNorth().toFixed(4) + "&lomax=" + b.getEast().toFixed(4)).then(function (r) {
+      var j = null; try { j = JSON.parse(r.body); } catch (e) {}
+      if (!j || !j.states) {
+        flugMsg = (primary === "empty") ? "Keine Flugzeuge in diesem Bereich – etwas herauszoomen." : "Flugdaten-Anbieter gerade nicht erreichbar (Netz/Provider?). Erneut versuchen.";
+        lastPlanes = []; drawFlights(false); return;
+      }
+      flugMsg = "";
       renderFlights(j.states.map(function (s) { var altM = (s[13] != null ? s[13] : s[7]); return { hex: s[0], flight: (s[1] || "").trim() || s[0], reg: "", type: "", lat: s[6], lon: s[5], onground: s[8], alt: (altM != null ? Math.round(altM * 3.28084) : null), gsKmh: (s[9] != null ? Math.round(s[9] * 3.6) : null), trk: s[10], squawk: s[14] || "", rate: (s[11] != null ? Math.round(s[11] * 196.85) : null) }; }));
     });
   }
@@ -1167,7 +1178,7 @@
     var list = $("flugList");
     if (lastFix) planes.sort(function (a, b) { return (a.distKm || 1e9) - (b.distKm || 1e9); });
     else planes.sort(function (a, b) { return (b.alt || 0) - (a.alt || 0); });
-    if (!planes.length) { list.innerHTML = '<div class="hint">Keine Flüge (Filter/Bereich prüfen).</div>'; return; }
+    if (!planes.length) { list.innerHTML = '<div class="hint">' + (flugMsg || "Keine Flüge im Bereich.") + '</div>'; return; }
     list.innerHTML = "";
     planes.slice(0, 60).forEach(function (p) {
       var emerg = isEmergency(p.squawk), route = routeCache[(p.flight || "").trim()], col = altColor(p.alt, emerg);
@@ -1326,6 +1337,16 @@
     if (airportsOn) { toast("Lade Flughäfen…"); loadAirports(); } else if (airportLayer) { airportLayer.clearLayers(); }
   };
   $("flugRefresh").onclick = function () { loadFlights(); };
+  function ensureYouFlug() {
+    if (!flugMap || !lastFix) return;
+    var ll = [lastFix.lat, lastFix.lon];
+    if (!youFlugMarker) youFlugMarker = L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#2563eb", fillOpacity: 1 }).addTo(flugMap);
+    else youFlugMarker.setLatLng(ll);
+  }
+  if ($("flugLocate")) $("flugLocate").onclick = function () {
+    if (lastFix) { flugMap.setView([lastFix.lat, lastFix.lon], Math.max(flugMap.getZoom(), 9)); ensureYouFlug(); loadFlights(); }
+    else { toast("Standort wird aktiviert – einen Moment…"); pendingFlugCenter = true; if (!appActive) startTracking(); }
+  };
   $("flugAuto").onclick = function () { flugAutoOn = !flugAutoOn; this.classList.toggle("on", flugAutoOn); toast("Auto-Aktualisierung " + (flugAutoOn ? "an" : "aus")); if (flugAutoOn) { if (flugVisible) { loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); } } else if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } };
 
   // ================= Wetter (Open-Meteo) =================

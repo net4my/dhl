@@ -66,21 +66,21 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.11
-          name: GeoPilot v3.11
+          tag_name: v3.12
+          name: GeoPilot v3.12
           body: |
-            GeoPilot 3.11 – kompletter Neuanstrich im Flightradar24-Stil.
+            GeoPilot 3.12 – FR24-Karte in beiden Modi, „Zu mir" & klare Status.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **FR24-Designsystem für die ganze App:** dunkel = Flightradar24-Look
-              (navy Karte, Amber-Akzent, gelbe Flugzeuge), hell = aufgeräumte Tag-Optik
-              (blau) – automatisch nach System/Tageszeit (Auto/Hell/Dunkel unter Mehr).
-            • **Dunkle Flugkarte** im Dark-Theme (CARTO dark) wie bei FR24; helle
-              Tag-Karte bleibt offline-fähig.
-            • **Neue Flug-Liste** als FR24-Karten: Flugzeug-Icon (höhenfarbig) +
-              Rufzeichen/Kennzeichen, Route & Tempo, Flughöhe rechts.
-            • Einheitliche Flächen, Buttons, Chips, Sheets und Tab-Leiste im neuen Stil.
+            • **FR24-Kartenstil auch im Hellmodus:** saubere helle CARTO-Karte statt
+              bunter OSM-Karte; im Dunkelmodus die dunkle FR24-Karte.
+            • **📍 „Zu mir"** auf der Flugkarte: zentriert auf deine Position (startet
+              bei Bedarf den Standort) und zeigt dich als Punkt – Flugzeuge um dich.
+            • **Klare Status-Meldung:** „Keine Flugzeuge im Bereich – herauszoomen" vs.
+              „Anbieter nicht erreichbar", damit man den Unterschied sieht.
+            • **Logischere Bedienung:** Knöpfe heißen jetzt „Standort & Sensoren AN /
+              Alles AUS“ (kein verwirrendes „Tracking“).
 
-            Alle Funktionen bleiben erhalten (Start-Hub, Navigation mit Favoriten & POI,
-            FR24-Flugradar, Tracking, GNSS, Android Auto …).
+            Hinweis: Live-Flugzeuge brauchen Internet + Flüge im Kartenausschnitt.
+            Für Flugzeuge um dich herum oben den Schalter bzw. „📍 Zu mir" antippen.
           files: android/GeoPilot.apk
