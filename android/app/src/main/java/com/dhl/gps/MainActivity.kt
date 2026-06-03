@@ -206,6 +206,45 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
                 .apply()
         }
 
+        /**
+         * Öffnet Android Auto bzw. dessen Einstellungen – dort wird einmalig
+         * „Unbekannte Quellen" aktiviert, damit GeoPilot (seitlich installiert)
+         * im Auto erscheint. Probiert mehrere Wege und meldet zurück, falls
+         * Android Auto gar nicht installiert ist.
+         */
+        @JavascriptInterface
+        fun openAndroidAuto() = runOnUiThread {
+            val pkg = "com.google.android.projection.gearhead"
+            // 1) Direkt die Entwickler-/Einstellungen von Android Auto …
+            val direct = listOf(
+                "$pkg.companion.DeveloperSettingsActivity",
+                "$pkg.companion.SettingsActivity"
+            )
+            for (cls in direct) {
+                try {
+                    startActivity(Intent().setClassName(pkg, cls).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    Toast.makeText(this@MainActivity, "Unten in „Entwicklereinstellungen“ → „Unbekannte Quellen“ aktivieren.", Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                } catch (_: Exception) {}
+            }
+            // 2) … sonst die Android-Auto-App starten …
+            try {
+                val launch = packageManager.getLaunchIntentForPackage(pkg)
+                if (launch != null) {
+                    startActivity(launch)
+                    Toast.makeText(this@MainActivity, "Menü ⋮ → Einstellungen → 10× auf Version tippen → Entwicklereinstellungen → „Unbekannte Quellen“.", Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+            } catch (_: Exception) {}
+            // 3) … sonst die App-Info-Seite (falls installiert, aber nicht startbar) …
+            try {
+                startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")))
+                return@runOnUiThread
+            } catch (_: Exception) {}
+            // 4) … sonst ist Android Auto nicht vorhanden.
+            Toast.makeText(this@MainActivity, "Android Auto ist nicht installiert. Bitte aus dem Play Store laden.", Toast.LENGTH_LONG).show()
+        }
+
         /** GPS-Aktualisierungsintervall ändern (Energiesparen). */
         @JavascriptInterface
         fun setLocationInterval(ms: Int) = runOnUiThread {

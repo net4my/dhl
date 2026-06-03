@@ -1578,6 +1578,7 @@
   if (powerSave) applyPower(true);
   $("battWarnTgl").onclick = function () { battWarnOn = !battWarnOn; this.classList.toggle("on", battWarnOn); LS.setItem("gg_battwarn", battWarnOn ? "1" : "0"); };
   $("battOptBtn").onclick = function () { if (hasNative()) { try { window.Android.requestIgnoreBatteryOptimization(); setTimeout(updateOptStatus, 1500); } catch (e) {} } else toast("Nur in der nativen App (APK)."); };
+  var aaBtn = $("aaOpenBtn"); if (aaBtn) aaBtn.onclick = function () { if (hasNative() && window.Android.openAndroidAuto) { try { window.Android.openAndroidAuto(); } catch (e) { toast("Android Auto konnte nicht geöffnet werden."); } } else toast("Nur in der nativen App (APK) – im Auto verfügbar."); };
   function updateOptStatus() { if (hasNative()) { try { var ig = window.Android.isIgnoringBattery(); $("battOptHint").textContent = ig ? "✅ GeoGuard ist von der Akku-Optimierung ausgenommen." : "⚠️ Noch nicht ausgenommen – Hintergrund-Tracking kann beendet werden."; } catch (e) {} } }
   updateOptStatus();
   if (!hasNative() && navigator.getBattery) { navigator.getBattery().then(function (bat) { function upd() { updateBattery({ pct: Math.round(bat.level * 100), charging: bat.charging, plugged: bat.charging ? "USB" : "–", temp: 0, volt: 0, health: "–", tech: "–" }); } upd(); bat.addEventListener("levelchange", upd); bat.addEventListener("chargingchange", upd); }); }

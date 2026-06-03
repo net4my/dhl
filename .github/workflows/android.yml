@@ -66,21 +66,20 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.17
-          name: GeoPilot v3.17
+          tag_name: v3.18
+          name: GeoPilot v3.18
           body: |
-            GeoPilot 3.17 – nutzbare Navigation: Auto-Route, „Losfahren", Demo.
+            GeoPilot 3.18 – Android Auto leichter einrichten.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Route erscheint automatisch**, sobald du ein Ziel wählst (Adresse/POI/
-              Favorit) – Strecke, Dauer & Linie ohne Extra-Tipp.
-            • **▶︎ Losfahren:** ein Tipp berechnet (falls nötig) und startet die
-              Navigation mit Abbiege-Banner, ETA und – auf Wunsch – Sprachansagen.
-            • **🧪 Route abfahren (Demo):** fährt die Route sichtbar ab (bewegte Position,
-              Abbiege-Hinweise, Ansagen) – so kannst du die Navigation **ohne Autofahren
-              testen und sehen, dass sie funktioniert**.
-            • Robusteres Routing (Valhalla + OSRM-Reserve) & klare Fehlermeldungen.
+            • **„📲 Android Auto öffnen"-Knopf** (Mehr → „Android Auto einrichten"):
+              springt mit einem Tipp direkt in die Android-Auto-Einstellungen, wo
+              **„Unbekannte Quellen"** sitzt – inklusive Hinweis, welcher Schalter
+              gebraucht wird. Damit erscheint GeoPilot (seitlich installiert) im Auto.
+            • Klarere Schritt-für-Schritt-Anleitung im selben Bereich.
 
-            Ablauf: Schalter oben AN → Tab „Ziel" → Adresse suchen → ▶︎ Losfahren
-            (oder 🧪 Demo zum Ausprobieren).
+            Hinweis: Android Auto zeigt Navi-Apps **nur am Auto-Display** (oder im
+            „Desktop Head Unit"), nie auf dem Handy allein – das ist eine Vorgabe von
+            Google, kein Fehler der App. Zum Navigieren **am Handy** einfach
+            Tab „Ziel" → ▶︎ Losfahren (oder 🧪 Demo).
           files: android/GeoPilot.apk
