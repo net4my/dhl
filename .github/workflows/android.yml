@@ -66,19 +66,21 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.13
-          name: GeoPilot v3.13
+          tag_name: v3.14
+          name: GeoPilot v3.14
           body: |
-            GeoPilot 3.13 – saubere Positionierung von Icons & Menüs.
+            GeoPilot 3.14 – echte Android-Auto-Navigation mit Karte & Kompass.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Einheitliche Tab-Icons** unten: klare Vektor-Symbole (gleiche Größe &
-              Strichstärke) statt ungleicher Emojis, sauber zentriert.
-            • **Aufgeräumte Kopfzeile:** konsistente Pillen-Höhe, kein Umbruch, Titel
-              wird sauber gekürzt – nichts mehr gedrängt.
-            • **Flug-Schnellbuttons** mit gleichmäßigen Abständen und Rand, klar von
-              Suchfeld/Filter getrennt.
-            • Suchzeile/Chips bündig ausgerichtet.
+            • **Android Auto: gerenderte Straßenkarte** auf dem Auto-Display
+              (Heading-up, dreht sich in Fahrtrichtung), mit Positions-Chevron.
+            • **Live-HUD im Auto:** Tempo, **Höhenmesser**, Kurs (Grad + Himmelsrichtung),
+              aktueller **Straßenname** und – wenn ein Ziel gesetzt ist – Entfernung,
+              Ankunftszeit (ETA) und Zielpeilung direkt auf der Karte.
+            • **Kompass-Rose** und Tag/Nacht-Karte (dunkel = FR24-Stil), Zoom +/− und
+              „Neu zentrieren" als Auto-Buttons; „Daten"-Ansicht mit Detailwerten.
+            • Ziel aus der Handy-App (Navigation → Ziel) erscheint automatisch im Auto.
 
-            Enthält weiterhin: FR24-Look hell & dunkel, „📍 Zu mir", klare Live-Status.
+            Hinweis: Android Auto braucht ein verbundenes Auto/Head-Unit; die Karte
+            lädt Online-Kacheln. Standort in der App muss aktiv/erlaubt sein.
           files: android/GeoPilot.apk
