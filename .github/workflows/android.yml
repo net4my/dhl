@@ -66,15 +66,14 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.5
-          name: GeoPilot v3.5
+          tag_name: v3.6
+          name: GeoPilot v3.6
           body: |
-            GeoPilot 3.5 – Kompass über der Karte.
+            GeoPilot 3.6 – große Karte mit Kompass-Overlay.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Kompass & Karte vereint**: Die Live-Karte liegt jetzt **im Kompasskreis**,
-              darüber Himmelsrichtungen (N/O/S/W) und eine **saubere Richtungsnadel**, die
-              zeigt, wohin du blickst. Position als Punkt in der Mitte; Ziel-Peilung
-              weiterhin als Marker am Rand.
-            • Aufgeräumter: die separate „Karte & Richtung"-Kachel entfällt.
+            • **Große rechteckige Karte** über die volle Breite als Dashboard-Hero,
+              darüber der Kompass als Overlay (Himmelsrichtungen + Position in der Mitte).
+            • **Feinere Richtungsnadel** und eine kompakte Richtungs-Anzeige (°) unten auf
+              der Karte.
           files: android/GeoPilot.apk
