@@ -1,0 +1,89 @@
+name: Build GeoGuard APK
+
+# Baut die installierbare .apk in der Cloud (GitHub-Runner haben das Android-SDK)
+# und stellt sie als Download-Artefakt bereit. Bei einem Tag v* wird zusätzlich
+# ein Release mit angehängter APK erstellt.
+
+on:
+  push:
+    branches: [ "**" ]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build signed Release APK
+        run: |
+          n=0
+          until [ $n -ge 5 ]; do
+            ./gradlew --no-daemon assembleRelease && exit 0
+            n=$((n+1))
+            echo "::warning::Gradle build attempt $n failed (likely a transient download error), retrying in 15s…"
+            sleep 15
+          done
+          echo "::error::Gradle build failed after 5 attempts"
+          exit 1
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk GeoPilot.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GeoPilot-apk
+          path: android/GeoPilot.apk
+          if-no-files-found: error
+
+      - name: Publish APK as GitHub Release
+        if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.20
+          name: GeoPilot v3.20
+          body: |
+            GeoPilot 3.20 – mitdrehende Karte, große Abbiege-Anzeige, antippbare Aktivitäten.
+            Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
+
+            **Navigation:**
+            • **Karte dreht in Fahrtrichtung (Beta):** einschaltbar unter Mehr →
+              „🧭 Karte in Fahrtrichtung" – die Fahrtrichtung zeigt dann nach oben.
+            • **Große, klare Abbiege-Anzeige:** großer Pfeil + große Distanz,
+              Spur-Hinweis („rechts halten", „Kreisverkehr") und Vorschau „danach …".
+
+            **Verlauf:**
+            • **Aktivitäten sind jetzt antippbar:** zeigt die gefahrene/gelaufene
+              **Strecke auf der Karte** + Höhen-/Tempoprofil (🗺-Markierung in der Liste).
+              Neue Aufzeichnungen speichern dafür automatisch die Strecke mit.
+
+            Enthält weiterhin (3.19): drehender Richtungspfeil, Karte folgt & zoomt,
+            tempo-abhängige Sprachansagen, schnelles Reroute, Ziel-Verlauf mit Zeitangabe
+            und GPX-Export pro Tour.
+          files: android/GeoPilot.apk

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Navigations-Pfeil (GeoPilot) – weiße Kontur + zweifarbiges Cyan -->
+    <path android:fillColor="#FFFFFF" android:pathData="M54,20 L84,88 L54,72 L24,88 Z" />
+    <path android:fillColor="#7dd3fc" android:pathData="M54,27 L54,69 L30,82 Z" />
+    <path android:fillColor="#0284c7" android:pathData="M54,27 L78,82 L54,69 Z" />
+</vector>
