@@ -202,9 +202,14 @@
   #navBanner{display:none;position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top) + 8px);z-index:1500;background:linear-gradient(135deg,#0284c7,#4338ca);border-radius:14px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.45);color:#fff;}
   #navBanner.show{display:block;}
   .nb-main{display:flex;align-items:center;gap:12px;}
-  #nbArrow{font-size:38px;line-height:1;}
-  #nbInstr{font-size:1.05rem;font-weight:800;line-height:1.15;}
-  #nbDist{font-size:.95rem;opacity:.9;margin-top:2px;font-weight:700;}
+  #nbArrow{font-size:56px;line-height:1;flex:0 0 auto;}
+  .nb-txt{flex:1;min-width:0;}
+  #nbDist{font-size:1.9rem;font-weight:900;line-height:1.05;letter-spacing:-.5px;}
+  #nbInstr{font-size:1.05rem;font-weight:800;line-height:1.18;margin-top:1px;}
+  .nb-hint{display:none;margin-top:5px;font-size:.82rem;font-weight:800;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:8px;align-self:flex-start;}
+  .nb-hint.show{display:inline-block;}
+  .nb-next{display:none;margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.25);font-size:.84rem;font-weight:700;opacity:.92;}
+  .nb-next.show{display:block;}
   .nb-sub{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:.8rem;font-weight:700;opacity:.95;}
   .nb-sub button{background:rgba(0,0,0,.25);padding:7px 12px;font-size:.78rem;width:auto;}
   /* Flug-Tab (Karte zuerst, FR24-Stil) */
@@ -292,7 +297,8 @@
   </div>
 
   <div id="navBanner">
-    <div class="nb-main"><span id="nbArrow">⬆️</span><div><div id="nbInstr">–</div><div id="nbDist">–</div></div></div>
+    <div class="nb-main"><span id="nbArrow">⬆️</span><div class="nb-txt"><div id="nbDist">–</div><div id="nbInstr">–</div><div id="nbHint" class="nb-hint"></div></div></div>
+    <div id="nbNext" class="nb-next"></div>
     <div class="nb-sub"><span id="nbEta">–</span><span style="display:flex;gap:6px"><button id="navRecenter">🎯</button><button id="navStopBtn">✖ Beenden</button></span></div>
   </div>
 
@@ -696,6 +702,7 @@
         <div class="switch" style="margin-top:10px"><div><div class="t">🔴 Nachtmodus (Rotlicht)</div><div class="d">Schont die Nachtsicht – überschreibt das Design</div></div><div class="toggle" id="nightTgl"></div></div>
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
+        <div class="switch"><div><div class="t">🧭 Karte in Fahrtrichtung (Beta)</div><div class="d">Beim Navigieren dreht sich die Karte mit – Fahrtrichtung zeigt nach oben</div></div><div class="toggle" id="headUpTgl"></div></div>
       </div>
       <div class="card collapsible collapsed">
         <div class="section-title">🚗 Android Auto einrichten</div>

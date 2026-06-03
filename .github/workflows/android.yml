@@ -66,23 +66,24 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.19
-          name: GeoPilot v3.19
+          tag_name: v3.20
+          name: GeoPilot v3.20
           body: |
-            GeoPilot 3.19 – live & aktive Navigation + besserer Verlauf.
+            GeoPilot 3.20 – mitdrehende Karte, große Abbiege-Anzeige, antippbare Aktivitäten.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            **Navigation fühlt sich jetzt „live" an:**
-            • **Drehender Richtungspfeil** statt blauem Punkt – zeigt deine Fahrtrichtung.
-            • **Karte fährt automatisch mit** und zoomt vor Abzweigungen näher heran;
-              wenn du die Karte verschiebst, folgt sie nach kurzer Pause von allein wieder.
-            • **Live-Sprachansagen:** früher bei höherem Tempo, plus eine „Jetzt"-Ansage
-              direkt an der Abzweigung; ETA/Restzeit aktualisieren sich laufend.
-            • **Schnellere automatische Neuberechnung**, wenn du von der Route abkommst.
+            **Navigation:**
+            • **Karte dreht in Fahrtrichtung (Beta):** einschaltbar unter Mehr →
+              „🧭 Karte in Fahrtrichtung" – die Fahrtrichtung zeigt dann nach oben.
+            • **Große, klare Abbiege-Anzeige:** großer Pfeil + große Distanz,
+              Spur-Hinweis („rechts halten", „Kreisverkehr") und Vorschau „danach …".
 
-            **Verlauf klarer & nützlicher:**
-            • **Ziel-Verlauf** (zuletzt navigiert): mehr Einträge, Zeitangabe
-              („vor 2 Std"), einzeln entfernbar, ein Tipp navigiert erneut dorthin.
-            • **Aufgezeichnete Touren** lassen sich jetzt **als GPX exportieren** (📥),
-              ansehen (👁) und löschen.
+            **Verlauf:**
+            • **Aktivitäten sind jetzt antippbar:** zeigt die gefahrene/gelaufene
+              **Strecke auf der Karte** + Höhen-/Tempoprofil (🗺-Markierung in der Liste).
+              Neue Aufzeichnungen speichern dafür automatisch die Strecke mit.
+
+            Enthält weiterhin (3.19): drehender Richtungspfeil, Karte folgt & zoomt,
+            tempo-abhängige Sprachansagen, schnelles Reroute, Ziel-Verlauf mit Zeitangabe
+            und GPX-Export pro Tour.
           files: android/GeoPilot.apk

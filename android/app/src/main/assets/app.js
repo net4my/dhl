@@ -335,6 +335,7 @@
 
   // ================= Karte =================
   var map = null, meMarker = null, accCircle = null, trackLine = null, targetMarker = null, viewLine = null, followMe = true;
+  var headingUp = LS.getItem("gg_headup") === "1";
   var TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   var TILE_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
   var TILE_TOPO = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
@@ -412,14 +413,25 @@
   function meIconHtml(deg) {
     return '<div class="me-chev" style="transform:rotate(' + (deg || 0) + 'deg);transition:transform .2s linear"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="#0ea5e9" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>';
   }
+  // Optional: ganze Karte in Fahrtrichtung drehen (Beta). Steuerelemente bleiben aufrecht.
+  function applyMapRotation(deg) {
+    if (!map) return; var el = map.getContainer(); var cc = el.querySelector(".leaflet-control-container");
+    if (headingUp && navActive) {
+      var par = el.parentElement; if (par) par.style.overflow = "hidden";
+      el.style.transformOrigin = "center center"; el.style.transform = "rotate(" + (-deg) + "deg) scale(1.5)";
+      if (cc) { cc.style.transformOrigin = "top right"; cc.style.transform = "rotate(" + deg + "deg) scale(" + (1 / 1.5) + ")"; }
+    } else if (el.style.transform) { el.style.transform = ""; if (cc) cc.style.transform = ""; }
+  }
   function onMapLocation(p) {
     if (!map) return; var ll = [p.lat, p.lon]; var hd = navHeading(p);
-    if (!meMarker) { meMarker = L.marker(ll, { icon: L.divIcon({ className: "", html: meIconHtml(hd), iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map); accCircle = L.circle(ll, { radius: p.acc || 0, color: "#0ea5e9", weight: 1, fillOpacity: .08 }).addTo(map); }
-    else { meMarker.setLatLng(ll); accCircle.setLatLng(ll).setRadius(p.acc || 0); var ch = meMarker._icon && meMarker._icon.querySelector(".me-chev"); if (ch) ch.style.transform = "rotate(" + hd + "deg)"; }
+    var chevDeg = (headingUp && navActive) ? 0 : hd; // bei Karten-Drehung zeigt der Pfeil immer nach oben
+    if (!meMarker) { meMarker = L.marker(ll, { icon: L.divIcon({ className: "", html: meIconHtml(chevDeg), iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map); accCircle = L.circle(ll, { radius: p.acc || 0, color: "#0ea5e9", weight: 1, fillOpacity: .08 }).addTo(map); }
+    else { meMarker.setLatLng(ll); accCircle.setLatLng(ll).setRadius(p.acc || 0); var ch = meMarker._icon && meMarker._icon.querySelector(".me-chev"); if (ch) ch.style.transform = "rotate(" + chevDeg + "deg)"; }
     // Beim aktiven Navigieren näher heranzoomen, kurz vor einer Abzweigung extra.
     var minZ = 16;
     if (navActive && routeSteps[routeStepIdx] && lastFix) { var dman = haversine(p.lat, p.lon, routeSteps[routeStepIdx].loc[0], routeSteps[routeStepIdx].loc[1]); if (dman < 220) minZ = 17; }
     if (followMe) map.setView(ll, Math.max(map.getZoom(), minZ));
+    applyMapRotation(navActive ? hd : 0);
   }
   $("centerBtn").onclick = function () { followMe = true; if (map && lastFix) map.setView([lastFix.lat, lastFix.lon], 17); };
   ["layerBtn", "layerBtn2", "layerBtn3"].forEach(function (id) { var b = $(id); if (b) b.onclick = cycleMapStyle; });
@@ -618,7 +630,23 @@
   // ================= Aktivitäts-Logbuch & Statistik =================
   var journalSaved = false;
   function loadJournal() { try { return JSON.parse(LS.getItem("gg_journal") || "[]"); } catch (e) { return []; } }
-  function saveJournalArr(a) { LS.setItem("gg_journal", JSON.stringify(a)); }
+  function saveJournalArr(a) {
+    try { LS.setItem("gg_journal", JSON.stringify(a)); }
+    catch (e) {
+      // Speicher voll: Streckenpunkte älterer Einträge verwerfen, Zusammenfassung behalten.
+      var slim = a.map(function (x, i) { if (i < 5 || !x.pts) return x; var c = {}; for (var k in x) if (k !== "pts") c[k] = x[k]; return c; });
+      try { LS.setItem("gg_journal", JSON.stringify(slim)); } catch (e2) {}
+    }
+  }
+  function simplifyPt(p) { return { lat: +(+p.lat).toFixed(5), lon: +(+p.lon).toFixed(5), alt: (p.alt != null && !isNaN(p.alt)) ? Math.round(p.alt) : null, t: p.t }; }
+  function downsamplePts(pts, maxN) {
+    if (!pts || !pts.length) return [];
+    if (pts.length <= maxN) return pts.map(simplifyPt);
+    var step = Math.ceil(pts.length / maxN), out = [];
+    for (var i = 0; i < pts.length; i += step) out.push(simplifyPt(pts[i]));
+    out.push(simplifyPt(pts[pts.length - 1]));
+    return out;
+  }
   function activityType(avgMs) {
     if (avgMs < 2.2) return { i: "🚶", n: "Zu Fuß" };
     if (avgMs < 4.2) return { i: "🏃", n: "Laufen" };
@@ -629,7 +657,7 @@
     if (journalSaved || !trackStart || trackDist < 50) return false;
     var s = trackStats(track), durSec = Math.max(1, Math.floor((Date.now() - trackStart) / 1000));
     var avg = trackDist / durSec, t = activityType(avg);
-    var entry = { id: Date.now(), date: trackStart, dist: Math.round(trackDist), durSec: durSec, moveSec: Math.round(s.moveSec), avg: avg, max: maxSpeed, up: Math.round(s.up), down: Math.round(s.down), type: t.n, icon: t.i };
+    var entry = { id: Date.now(), date: trackStart, dist: Math.round(trackDist), durSec: durSec, moveSec: Math.round(s.moveSec), avg: avg, max: maxSpeed, up: Math.round(s.up), down: Math.round(s.down), type: t.n, icon: t.i, pts: downsamplePts(track, 600) };
     var a = loadJournal(); a.unshift(entry); if (a.length > 500) a = a.slice(0, 500); saveJournalArr(a);
     journalSaved = true; renderJournal(); renderStats();
     var d = fmtDist(trackDist); toast("✅ Aktivität gespeichert: " + t.i + " " + d.v + " " + d.u);
@@ -682,14 +710,21 @@
       var dur = hh > 0 ? hh + " h " + (mm % 60) + " min" : mm + " min";
       var when = dt.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) + " · " + dt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
       var row = document.createElement("div"); row.className = "flight-card";
+      if (e.pts && e.pts.length > 1) { row.style.cursor = "pointer"; row.title = "Strecke auf Karte ansehen"; }
       row.innerHTML = '<div class="fc-ic" style="font-size:22px;display:flex;align-items:center;justify-content:center">' + e.icon + '</div>' +
-        '<div class="fc-main"><div class="fc-top"><span class="fc-cs" style="font-size:.95rem">' + d.v + " " + d.u + '</span><span class="fc-reg">' + escapeHtml(e.type) + '</span></div>' +
+        '<div class="fc-main"><div class="fc-top"><span class="fc-cs" style="font-size:.95rem">' + d.v + " " + d.u + (e.pts && e.pts.length > 1 ? " 🗺" : "") + '</span><span class="fc-reg">' + escapeHtml(e.type) + '</span></div>' +
         '<div class="fc-route">' + when + " · " + dur + (e.up ? " · ⬆ " + fmtAlt(e.up) + (isImp() ? " ft" : " m") : "") + '</div></div>' +
         '<div class="fc-alt"><div class="a">' + fmtSpeed(e.avg) + '</div><div class="u">' + (isImp() ? "mph" : "km/h") + ' Ø</div></div>';
+      row.onclick = function () { viewActivity(e); };
       var del = document.createElement("button"); del.className = "b-soft"; del.style.cssText = "flex:0 0 auto;width:38px;padding:8px"; del.textContent = "🗑";
-      del.onclick = function () { var arr = loadJournal().filter(function (x) { return x.id !== e.id; }); saveJournalArr(arr); renderJournal(); renderStats(); };
+      del.onclick = function (ev) { ev.stopPropagation(); var arr = loadJournal().filter(function (x) { return x.id !== e.id; }); saveJournalArr(arr); renderJournal(); renderStats(); };
       row.appendChild(del); c.appendChild(row);
     });
+  }
+  function viewActivity(e) {
+    if (!e.pts || e.pts.length < 2) { toast("Für diese Aktivität sind keine Streckendaten gespeichert (ältere Aufzeichnung)."); return; }
+    var dt = new Date(e.date);
+    viewTour({ name: (e.icon || "") + " " + e.type + " · " + dt.toLocaleDateString("de-DE") + " " + dt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }), pts: e.pts, dist: e.dist, up: e.up, down: e.down, moveSec: e.moveSec });
   }
   var profilePts = null, profileMode = "alt";
   function profMsg(ctx, W, H, t) { ctx.fillStyle = "#94a3b8"; ctx.font = "14px sans-serif"; ctx.textAlign = "center"; ctx.fillText(t, W / 2, H / 2); ctx.textAlign = "left"; }
@@ -943,6 +978,7 @@
   $("geoRad").value = LS.getItem("gg_georad") || "50";
   $("geoTgl").onclick = function () { geoOn = !geoOn; this.classList.toggle("on", geoOn); LS.setItem("gg_geo", geoOn ? "1" : "0"); };
   $("voiceTgl").onclick = function () { voiceOn = !voiceOn; this.classList.toggle("on", voiceOn); LS.setItem("gg_voice", voiceOn ? "1" : "0"); if (voiceOn) speak("Sprachhinweise aktiv."); };
+  if ($("headUpTgl")) { $("headUpTgl").classList.toggle("on", headingUp); $("headUpTgl").onclick = function () { headingUp = !headingUp; this.classList.toggle("on", headingUp); LS.setItem("gg_headup", headingUp ? "1" : "0"); if (!headingUp) applyMapRotation(0); if (lastFix) onMapLocation(lastFix); toast(headingUp ? "🧭 Karte dreht beim Navigieren mit." : "Karte bleibt nach Norden ausgerichtet."); }; }
   $("geoRad").onchange = function () { LS.setItem("gg_georad", this.value); };
   function speak(text) { if (hasNative()) { try { window.Android.speak(text); return; } catch (e) {} } if (window.speechSynthesis) { try { var u = new SpeechSynthesisUtterance(text); u.lang = "de-DE"; window.speechSynthesis.speak(u); } catch (e) {} } }
   function vibrate(ms) { if (hasNative()) { try { window.Android.vibrate(typeof ms === "number" ? ms : 800); return; } catch (e) {} } if (navigator.vibrate) navigator.vibrate(ms); }
@@ -1057,6 +1093,16 @@
     return "⬆️";
   }
   function osrmIcon(mod) { return ({ left: "⬅️", right: "➡️", "slight left": "↖️", "slight right": "↗️", "sharp left": "↙️", "sharp right": "↘️", straight: "⬆️", uturn: "↩️" })[mod] || "⬆️"; }
+  // Leichter Spur-/Halten-Hinweis aus Anweisungstext und Symbol abgeleitet.
+  function laneHint(st) {
+    if (!st) return ""; var t = st.instr || "", ic = st.icon || "";
+    if (/rechts halten|halten sie sich rechts/i.test(t) || ic === "↗️") return "↳ rechts halten";
+    if (/links halten|halten sie sich links/i.test(t) || ic === "↖️") return "↳ links halten";
+    if (/auffahrt|auffahren|einf[äa]deln/i.test(t)) return "↳ einfädeln";
+    if (ic === "🔄" || /kreisverkehr/i.test(t)) return "↻ Kreisverkehr";
+    if (ic === "🔀") return "↳ Spur wechseln";
+    return "";
+  }
   function fmtDur(secs) { var m = Math.round(secs / 60); if (m < 1) return "< 1 min"; if (m < 60) return m + " min"; return Math.floor(m / 60) + " h " + (m % 60) + " min"; }
   function navMsg(html) { var c = $("steps"); if (c) c.innerHTML = '<div class="hint" style="text-align:left;line-height:1.6">' + html + '</div>'; }
   function calcRoute() {
@@ -1143,7 +1189,9 @@
       var eta = remaining(), ed = fmtDist(eta.dist), arr = new Date(Date.now() + eta.time * 1000);
       var nxt = routeSteps[routeStepIdx + 1] || s, after = routeSteps[routeStepIdx + 2];
       $("nbArrow").textContent = nxt.icon || "⬆️"; $("nbInstr").textContent = nxt.instr;
-      var dd = fmtDist(dToMan); $("nbDist").textContent = "in " + dd.v + " " + dd.u + (after ? "  ›  danach " + (after.icon || "") : "");
+      var dd = fmtDist(dToMan); $("nbDist").textContent = dd.v + " " + dd.u;
+      var hint = laneHint(nxt), hEl = $("nbHint"); if (hEl) { hEl.textContent = hint; hEl.classList.toggle("show", !!hint); }
+      var nEl = $("nbNext"); if (nEl) { if (after) { nEl.innerHTML = "danach " + (after.icon || "") + " " + escapeHtml(after.instr); nEl.classList.add("show"); } else nEl.classList.remove("show"); }
       var spdTxt = (lastFix.speed != null && !isNaN(lastFix.speed)) ? " · " + fmtSpeed(lastFix.speed) + " " + (isImp() ? "mph" : "km/h") : "";
       $("nbEta").textContent = "Ankunft ~" + arr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " · noch " + ed.v + " " + ed.u + " · " + fmtDur(eta.time) + spdTxt;
       if (map && followMe) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16));
@@ -1157,7 +1205,7 @@
     else if (voiceOn && dToMan < farD && !s._ann) { s._ann = true; var d2 = fmtDist(dToMan); speak("In " + d2.v + " " + (d2.u === "km" ? "Kilometern" : "Metern") + ": " + s.instr); }
   }
   function startNav() { if (!routeSteps.length) { pendingNavStart = true; calcRoute(); return; } navActive = true; arrived = false; followMe = true; $("navBanner").classList.add("show"); $("navStartBtn").textContent = "⏹ Navigation läuft"; switchTab("map"); if (voiceOn) speak("Navigation gestartet."); routeProgress(); }
-  function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Losfahren"; }
+  function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Losfahren"; applyMapRotation(0); }
 
   // ===== Demo-/Simulationsmodus: Route sichtbar abfahren =====
   var simTimer = null, simIdx = 0, simActive = false;
@@ -1175,7 +1223,7 @@
     if (simTimer) { clearInterval(simTimer); simTimer = null; }
     simActive = false;
     if ($("simBtn")) { $("simBtn").textContent = "🧪 Route abfahren (Demo)"; $("simBtn").className = "b-warn full-btn"; }
-    if (!silent) { navActive = false; $("navBanner").classList.remove("show"); }
+    if (!silent) { navActive = false; $("navBanner").classList.remove("show"); applyMapRotation(0); }
   }
   function simTick() {
     if (arrived || simIdx >= routeShape.length) { if (voiceOn && !arrived) speak("Demo beendet."); stopSim(false); toast("Demo beendet."); return; }
