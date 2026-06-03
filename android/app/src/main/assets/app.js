@@ -840,7 +840,7 @@
   $("routeClearBtn").onclick = function () { stopNav(); if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; routeShape = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
 
   // ================= Flugradar (FR24-Stil – echte ADS-B-Daten) =================
-  var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 15000, flugAutoOn = true, flugVisible = false;
+  var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 8000, flugAutoOn = true, flugVisible = false;
   var followFlugHex = null, lastPlanes = [], flugFilter = "all", flugQuery = "", trailPts = [], acCache = {}, routeCache = {}, detailHex = null, flugRouteLayer = null;
   var flugMarkers = {}, flugAnim = null;
   function isEmergency(sq) { return sq === "7500" || sq === "7600" || sq === "7700"; }
@@ -859,7 +859,7 @@
   function openFlug() {
     flugVisible = true; ensureFlugMap(); loadFlights();
     if (flugAutoOn) { if (flugTimer) clearInterval(flugTimer); flugTimer = setInterval(loadFlights, flugInterval); }
-    if (!flugAnim) flugAnim = setInterval(animateFlights, 1000);
+    if (!flugAnim) flugAnim = setInterval(animateFlights, 250);
   }
   function pauseFlug() { flugVisible = false; if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } if (flugAnim) { clearInterval(flugAnim); flugAnim = null; } }
   function animateFlights() {
@@ -906,7 +906,7 @@
     lastPlanes.forEach(function (p) { p.baseLat = p.lat; p.baseLon = p.lon; p.t0 = now; p.distKm = lastFix ? haversine(lastFix.lat, lastFix.lon, p.lat, p.lon) / 1000 : null; });
     drawFlights(false);
     if (detailHex) renderDetail();
-    if (flugVisible && !flugAnim) flugAnim = setInterval(animateFlights, 1000);
+    if (flugVisible && !flugAnim) flugAnim = setInterval(animateFlights, 250);
   }
   function drawFlights(animOnly) {
     if (!flugMap || !flugLayer) return;
@@ -928,7 +928,7 @@
     if (followFlugHex) {
       var f = lastPlanes.filter(function (p) { return p.hex === followFlugHex; })[0];
       if (f) {
-        flugMap.panTo([f.lat, f.lon], { animate: true, duration: .9 });
+        flugMap.setView([f.lat, f.lon], flugMap.getZoom(), { animate: false });
         trailPts.push([f.lat, f.lon]); if (trailPts.length > 150) trailPts.shift();
         if (!flugTrail) flugTrail = L.polyline(trailPts, { color: "#38bdf8", weight: 3, opacity: .85, dashArray: "5 5" }).addTo(flugMap); else flugTrail.setLatLngs(trailPts);
         drawFlightRoute(f);
@@ -974,6 +974,7 @@
   function closeDetail() { detailHex = null; $("flugDetail").classList.remove("show"); }
   function fetchDetailData(hex) {
     if (!acCache[hex]) {
+      acCache[hex] = { pending: true };
       httpJson("https://api.adsbdb.com/v0/aircraft/" + encodeURIComponent(hex)).then(function (j) {
         var a = j && j.response && j.response.aircraft;
         acCache[hex] = a ? { type: a.type, manu: a.manufacturer, reg: a.registration, owner: a.registered_owner, country: a.registered_owner_country_name, photo: a.url_photo_thumbnail || a.url_photo } : {};
@@ -982,6 +983,7 @@
     }
     var p = planeByHex(hex), cs = (p && p.flight || "").trim();
     if (cs && !routeCache[cs]) {
+      routeCache[cs] = { pending: true };
       httpJson("https://api.adsbdb.com/v0/callsign/" + encodeURIComponent(cs)).then(function (j) {
         var r = j && j.response && j.response.flightroute;
         routeCache[cs] = r ? {
@@ -1221,6 +1223,8 @@
     toast("🍃 Nur Tracking aktiv – Strom sparen.");
   };
   buildTabToggles(); applyTabs();
+  if ($("tabsBtn")) $("tabsBtn").onclick = function () { buildTabToggles(); $("tabsOverlay").classList.add("show"); };
+  if ($("tabsClose")) $("tabsClose").onclick = function () { $("tabsOverlay").classList.remove("show"); };
 
   // ================= Einklappbare Karten (Übersicht) =================
   (function setupCollapse() {
@@ -1240,5 +1244,5 @@
 
   // ================= Start =================
   setTimeout(ensureCompassMap, 400);
-  if (hasNative()) { setStatus("warn", "Initialisiere…"); try { window.Android.startLocation(); } catch (e) {} } else setStatus("", "Bereit – Tracking starten");
+  setStatus("", "Bereit – Tippe ▶︎ Start");
 })();

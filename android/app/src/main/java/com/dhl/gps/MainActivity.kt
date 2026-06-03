@@ -77,6 +77,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private val orientation = FloatArray(3)
     private var lastHeadingSent = 0L
     private var pendingStart = false
+    private var tracking = false
     private var tts: TextToSpeech? = null
     private val io: ExecutorService = Executors.newCachedThreadPool()
     private var locationIntervalMs = 1000L
@@ -117,8 +118,8 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     // JavaScript-Bridge (window.Android.*)
     // ---------------------------------------------------------------------
     inner class Bridge {
-        @JavascriptInterface fun startLocation() = runOnUiThread { ensurePermissionThenStart() }
-        @JavascriptInterface fun stopLocation() = runOnUiThread { stopUpdates() }
+        @JavascriptInterface fun startLocation() = runOnUiThread { tracking = true; ensurePermissionThenStart() }
+        @JavascriptInterface fun stopLocation() = runOnUiThread { tracking = false; stopUpdates() }
 
         @JavascriptInterface
         fun toast(msg: String) = runOnUiThread { Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show() }
@@ -370,7 +371,8 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
     override fun onResume() {
         super.onResume()
-        if (hasLocationPermission()) startUpdates()
+        // Nur fortsetzen, wenn der Nutzer Tracking gestartet hat (kein Auto-Start = Energie sparen).
+        if (tracking && hasLocationPermission()) startUpdates()
         registerBattery()
     }
 

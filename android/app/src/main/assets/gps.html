@@ -212,7 +212,8 @@
   <div class="topbar">
     <div class="logo" id="logoBtn" style="cursor:pointer">🛰️</div>
     <div class="title">GeoPilot <span class="conn off" id="connTag">offline</span></div>
-    <div class="status-pill" id="battTop" style="margin-left:auto"><span id="battIcon">🔋</span><span id="battTopPct">--%</span></div>
+    <div class="status-pill" id="tabsBtn" style="margin-left:auto;cursor:pointer" title="Tabs ein/ausblenden">▦ Tabs</div>
+    <div class="status-pill" id="battTop" style="margin-left:8px"><span id="battIcon">🔋</span><span id="battTopPct">--%</span></div>
     <div class="status-pill" style="margin-left:8px"><span id="dot" class="dot"></span><span id="statusText">Bereit</span></div>
   </div>
 
@@ -556,22 +557,13 @@
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
       <div class="card collapsible collapsed">
-        <div class="section-title">Tabs &amp; Energie sparen</div>
-        <div class="hint" style="text-align:left;margin-bottom:8px">Nicht benötigte Tabs ausschalten – spart Strom und macht die App übersichtlicher.</div>
-        <div id="tabToggles"></div>
-        <div class="btn-row" style="margin-top:10px">
-          <button id="tabsAll" class="b-soft">Alle an</button>
-          <button id="tabsTrackOnly" class="b-warn">🍃 Nur Tracking</button>
-        </div>
-      </div>
-      <div class="card collapsible collapsed">
         <div class="section-title">Hilfe &amp; Daten</div>
         <button id="helpOpenBtn" class="b-primary full-btn">❓ Hilfe &amp; Erste Schritte</button>
         <button id="tourBtn" class="b-soft full-btn" style="margin-top:9px">🎬 Einführungstour starten</button>
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.8 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.9 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -624,7 +616,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.8 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.9 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 
@@ -633,6 +625,20 @@
     <div class="help-box">
       <button class="close" id="flugDetClose">✖ Schließen</button>
       <div id="flugDetBody"></div>
+    </div>
+  </div>
+
+  <!-- Tabs ein/ausblenden -->
+  <div class="overlay" id="tabsOverlay">
+    <div class="help-box">
+      <button class="close" id="tabsClose">✖ Schließen</button>
+      <h2>▦ Tabs &amp; Energie</h2>
+      <p>Schalte Tabs ein oder aus – ausgeschaltete verschwinden aus der unteren Leiste. Das spart Strom und schafft Übersicht.</p>
+      <div id="tabToggles"></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button id="tabsAll" class="b-soft">Alle an</button>
+        <button id="tabsTrackOnly" class="b-warn">🍃 Nur Tracking</button>
+      </div>
     </div>
   </div>
 

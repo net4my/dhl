@@ -66,15 +66,18 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.8
-          name: GeoPilot v2.8
+          tag_name: v2.9
+          name: GeoPilot v2.9
           body: |
-            GeoPilot – Detail-Vervollständigung pro Tab.
+            GeoPilot – Start/Stopp, schneller Tab-Zugriff & besseres Flugradar.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v2.8:
-            • **Karten-Ebenen**: Umschalter auf allen Karten – **Standard · Satellit · Gelände**
-              (Esri-Luftbild & OpenTopoMap).
-            • **Tracking-Diagramm**: umschaltbar zwischen **Höhenprofil** und **Tempo-Verlauf**.
-            • **Adress-Suche mit Live-Vorschlägen** (Autocomplete während des Tippens).
+            Neu in v2.9:
+            • **Kein Auto-Start mehr**: GPS/Kompass starten erst mit **▶︎ Start** und
+              **Stopp beendet wirklich alles** (spart Strom). Beim App-Start läuft nichts
+              ungewollt mit.
+            • **Tabs ein/aus direkt erreichbar**: neuer **▦ Tabs**-Knopf in der Kopfzeile
+              (nicht mehr in den Einstellungen versteckt).
+            • **Flugradar flüssiger & live**: feinere Bewegungs-Interpolation (250 ms),
+              häufigere Daten (8 s) und ruhige, kontinuierliche Verfolgung.
           files: android/GeoPilot.apk
