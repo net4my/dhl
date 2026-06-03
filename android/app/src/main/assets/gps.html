@@ -206,14 +206,14 @@
   /* Flug-Tab (Karte zuerst, FR24-Stil) */
   #page-flug.active{display:block;padding:0;overflow:hidden;}
   #flugMap{position:absolute;inset:0;width:100%;height:100%;background:#0b1220;}
-  .flug-top{position:absolute;top:8px;left:8px;right:8px;z-index:600;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+  .flug-top{position:absolute;top:8px;left:8px;right:62px;z-index:600;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
   .flug-search{display:flex;gap:6px;pointer-events:auto;}
   .flug-search input{box-shadow:0 4px 14px rgba(0,0,0,.22);}
   .flug-search button{width:auto;padding:0 16px;box-shadow:0 4px 14px rgba(0,0,0,.22);}
   .flug-chips{display:flex;gap:6px;overflow-x:auto;pointer-events:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
   .flug-chips button{flex:0 0 auto;width:auto;padding:6px 12px;font-size:.76rem;font-weight:700;border-radius:999px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.18);}
   .flug-chips button.sel{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border-color:transparent;}
-  .flug-fabs{position:absolute;right:8px;top:104px;z-index:600;display:flex;flex-direction:column;gap:8px;}
+  .flug-fabs{position:absolute;right:8px;top:8px;z-index:600;display:flex;flex-direction:column;gap:8px;}
   .flug-fab{width:44px;height:44px;border-radius:50%;padding:0;font-size:18px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;}
   .flug-fab.on{background:linear-gradient(135deg,var(--success),#047857);color:#fff;border-color:transparent;}
   #flugSheet{position:absolute;left:0;right:0;bottom:0;z-index:650;background:var(--bg-card);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -6px 24px rgba(0,0,0,.28);max-height:46%;display:flex;flex-direction:column;transition:transform .28s ease;}
@@ -670,7 +670,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.9 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.10 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -723,7 +723,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.9 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.10 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

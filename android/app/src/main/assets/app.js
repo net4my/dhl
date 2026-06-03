@@ -1041,7 +1041,7 @@
   function ensureFlugMap() {
     if (flugMap || typeof L === "undefined") { if (flugMap) setTimeout(function () { flugMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
-    flugMap = L.map("flugMap", { zoomControl: true, attributionControl: false }).setView(c, lastFix ? 9 : 5);
+    flugMap = L.map("flugMap", { zoomControl: false, attributionControl: false }).setView(c, lastFix ? 9 : 5);
     flugBaseLayer = makeBaseLayer(); flugBaseLayer.addTo(flugMap);
     flugLayer = L.layerGroup().addTo(flugMap);
     flugMarkers = {};

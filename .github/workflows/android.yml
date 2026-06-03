@@ -66,21 +66,19 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.9
-          name: GeoPilot v3.9
+          tag_name: v3.10
+          name: GeoPilot v3.10
           body: |
-            GeoPilot 3.9 – sauberer Neuaufbau: Start-Hub & Auto-Design.
+            GeoPilot 3.10 – aufgeräumtes Flugradar (Überlappungen behoben).
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Start-Hub:** Die Startseite ist jetzt ein klarer Einstieg mit großen
-              Kacheln (Karte, Navigation, Flugradar, Tracking, Satelliten, Mehr) und
-              einem Status-Chip zum Ein-/Ausschalten – darunter weiterhin Kompass &
-              alle Details.
-            • **Automatisches Hell-/Dunkel-Design:** folgt der Android-Einstellung
-              (tagsüber hell, nachts dunkel). Manuell auf Hell oder Dunkel umstellbar,
-              Rot-/Nachtmodus bleibt erhalten – wählbar unter Mehr → Darstellung.
-            • Aufgeräumte, einheitliche Struktur und Optik, ruhigere Flächen.
+            • **Flugradar oben sauber getrennt:** Suchfeld + Filter-Chips links in
+              eigenem Bereich, die runden Schnell-Buttons rechts in eigener Spalte –
+              nichts überlappt mehr.
+            • Störende **+/–-Zoomtasten entfernt** (Zoom per Fingergeste), damit das
+              Suchfeld frei liegt.
 
-            Alle bisherigen Funktionen bleiben erhalten (Navigation mit Favoriten &
-            POI-Suche, FR24-Flugradar, Tracking, GNSS, Android Auto …).
+            Enthält den Neuaufbau aus 3.9: Start-Hub mit Kacheln und automatisches
+            Hell-/Dunkel-Design (Auto/Hell/Dunkel + Nachtmodus) – plus alle bisherigen
+            Funktionen.
           files: android/GeoPilot.apk
