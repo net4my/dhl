@@ -125,6 +125,15 @@
   .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:4px;}
   .btn-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
   .full-btn{grid-column:1 / -1;}
+  .poi-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+  .poi-row button{flex:0 0 auto;width:48px;height:48px;border-radius:14px;font-size:20px;padding:0;background:var(--bg-soft);border:1px solid var(--border);color:var(--text-main);display:flex;align-items:center;justify-content:center;}
+  .poi-row button.sel{background:linear-gradient(135deg,var(--primary),var(--secondary));border-color:transparent;color:#fff;}
+  .place-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--bg-soft);margin-top:8px;cursor:pointer;}
+  .place-item .pi-ico{font-size:18px;flex:0 0 auto;}
+  .place-item .pi-main{flex:1;min-width:0;}
+  .place-item .pi-name{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .place-item .pi-sub{font-size:.72rem;color:var(--text-muted);}
+  .place-item .pi-dist{font-size:.78rem;font-weight:700;color:var(--primary);flex:0 0 auto;}
   input,select{width:100%;padding:11px;border-radius:11px;border:1px solid var(--border);background:var(--bg-soft);color:var(--text-main);font-size:1rem;font-family:inherit;}
   label.fld{display:block;font-size:.66rem;color:var(--text-muted);margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;}
 
@@ -353,26 +362,42 @@
     <!-- ZIEL -->
     <div class="page" id="page-nav">
       <div class="card">
-        <div class="section-title">Navigation zum Ziel</div>
-        <div class="target-arrow"><div class="ta-ring"></div><div class="ta-pointer" id="taPointer">⬆️</div></div>
-        <div class="grid">
-          <div class="metric"><div class="label">📏 Entfernung</div><div class="value"><span id="navDist">--</span> <span class="unit" id="navDistU">m</span></div></div>
-          <div class="metric"><div class="label">🧭 Peilung</div><div class="value"><span id="navBear">--</span> <span class="unit">°</span></div></div>
-          <div class="metric full"><div class="label">🎯 Ziel</div><div class="value" id="navTarget" style="font-size:.84rem">Kein Ziel gesetzt</div></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="section-title">Adresse / Ort suchen <span class="src-tag">online</span></div>
+        <div class="section-title">Wohin? <span class="src-tag">online</span></div>
         <div style="display:flex;gap:8px">
-          <input type="text" id="addrInput" placeholder="z. B. Brandenburger Tor, Berlin" />
+          <input type="text" id="addrInput" placeholder="🔎 Adresse, Ort oder Koordinaten" />
           <button id="addrBtn" class="b-primary" style="width:auto;padding:0 16px">🔍</button>
         </div>
         <div id="addrResults"></div>
-        <div class="hint" style="margin-top:6px;text-align:left">Tipp: Auf der Karte <b>tippen</b> setzt das Ziel, <b>langes Drücken</b> legt einen Wegpunkt an.</div>
       </div>
 
       <div class="card">
-        <div class="section-title">Navigation <span class="src-tag">online</span></div>
+        <div class="section-title">Schnellziele &amp; Verlauf</div>
+        <div class="btn-row3">
+          <button id="favHome" class="b-soft">🏠 Zuhause</button>
+          <button id="favWork" class="b-soft">💼 Arbeit</button>
+          <button id="favSet" class="b-soft">＋ Favorit</button>
+        </div>
+        <div id="recentList" style="margin-top:8px"><div class="hint" style="text-align:left">Zuletzt gesuchte Ziele erscheinen hier.</div></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">In der Nähe <span class="src-tag">online</span></div>
+        <div class="poi-row" id="poiRow">
+          <button data-poi="fuel" title="Tankstelle">⛽</button>
+          <button data-poi="parking" title="Parken">🅿️</button>
+          <button data-poi="restaurant" title="Restaurant">🍴</button>
+          <button data-poi="cafe" title="Café">☕</button>
+          <button data-poi="supermarket" title="Supermarkt">🛒</button>
+          <button data-poi="atm" title="Geldautomat">🏧</button>
+          <button data-poi="pharmacy" title="Apotheke">💊</button>
+          <button data-poi="hotel" title="Hotel">🏨</button>
+        </div>
+        <div id="poiList"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Ziel &amp; Route</div>
+        <div class="metric full" style="margin-bottom:10px"><div class="label">🎯 Ziel</div><div class="value" id="navTarget" style="font-size:.9rem">Kein Ziel gesetzt</div></div>
         <div class="seg" id="modeSeg">
           <button data-m="auto" class="sel">🚗 Auto</button>
           <button data-m="pedestrian">🚶 Fuß</button>
@@ -387,43 +412,39 @@
           <button id="navStartBtn" class="b-success">▶︎ Navigation starten</button>
           <button id="routeClearBtn" class="b-soft full-btn">✖ Route löschen</button>
         </div>
-        <div class="switch" style="margin-top:8px"><div><div class="t">🛣 Autobahn meiden</div></div><div class="toggle" id="avoidHwTgl"></div></div>
-        <div class="switch"><div><div class="t">💶 Maut meiden</div></div><div class="toggle" id="avoidTollTgl"></div></div>
         <div id="routeOpts" style="display:flex;gap:8px;margin-top:10px"></div>
         <div id="steps" style="margin-top:10px"></div>
       </div>
 
-      <div class="card">
-        <div class="section-title">Zwischenstopps</div>
-        <div class="switch" style="margin-top:0"><div><div class="t">➕ Nächste Auswahl = Stopp</div><div class="d">Adresse/Tippen/Wegpunkt wird Zwischenstopp statt Ziel</div></div><div class="toggle" id="stopModeTgl"></div></div>
-        <div id="stopsList" style="margin-top:8px"><div class="hint" style="text-align:left">Keine Zwischenstopps. Route führt direkt zum Ziel.</div></div>
-        <button id="stopsClear" class="b-soft full-btn" style="margin-top:8px">✖ Stopps löschen</button>
-      </div>
-
-      <div class="card">
-        <div class="section-title">Ziel festlegen</div>
-        <label class="fld">Breite (Lat)</label>
-        <input type="number" id="inLat" inputmode="decimal" step="any" placeholder="z. B. 52.5200" />
-        <label class="fld" style="margin-top:10px">Länge (Lon)</label>
-        <input type="number" id="inLon" inputmode="decimal" step="any" placeholder="z. B. 13.4050" />
-        <div class="btn-row" style="margin-top:12px">
-          <button id="setTargetBtn" class="b-primary">🎯 Als Ziel setzen</button>
-          <button id="saveWpBtn" class="b-soft">＋ Ort speichern</button>
-        </div>
-        <div class="switch" style="margin-top:8px">
-          <div><div class="t">🔔 Ankunfts-Alarm</div><div class="d">Vibrieren bei Annäherung</div></div>
-          <div class="toggle" id="geoTgl"></div>
-        </div>
+      <div class="card collapsible collapsed">
+        <div class="section-title">Routen-Optionen</div>
+        <div class="switch" style="margin-top:0"><div><div class="t">🛣 Autobahn meiden</div></div><div class="toggle" id="avoidHwTgl"></div></div>
+        <div class="switch"><div><div class="t">💶 Maut meiden</div></div><div class="toggle" id="avoidTollTgl"></div></div>
+        <div class="switch"><div><div class="t">🗣 Sprach-Hinweise</div><div class="d">Abbiege-Ansagen</div></div><div class="toggle" id="voiceTgl"></div></div>
+        <div class="switch"><div><div class="t">🔔 Ankunfts-Alarm</div><div class="d">Vibrieren bei Annäherung</div></div><div class="toggle" id="geoTgl"></div></div>
         <label class="fld" style="margin-top:8px">Alarm-Radius (m)</label>
         <input type="number" id="geoRad" inputmode="numeric" value="50" />
-        <div class="switch" style="margin-top:8px">
-          <div><div class="t">🗣 Sprach-Hinweise</div><div class="d">Ansage von Entfernung &amp; Richtung</div></div>
-          <div class="toggle" id="voiceTgl"></div>
+        <div class="switch" style="margin-top:8px"><div><div class="t">➕ Nächste Auswahl = Zwischenstopp</div></div><div class="toggle" id="stopModeTgl"></div></div>
+        <div id="stopsList" style="margin-top:8px"></div>
+        <button id="stopsClear" class="b-soft full-btn" style="margin-top:8px">✖ Stopps löschen</button>
+        <div style="border-top:1px solid var(--border);margin:12px 0 8px"></div>
+        <label class="fld">Koordinaten direkt eingeben</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <input type="number" id="inLat" inputmode="decimal" step="any" placeholder="Breite" />
+          <input type="number" id="inLon" inputmode="decimal" step="any" placeholder="Länge" />
         </div>
+        <button id="setTargetBtn" class="b-primary full-btn" style="margin-top:8px">🎯 Als Ziel setzen</button>
       </div>
-      <div class="card">
-        <div class="section-title">Wegpunkte</div>
-        <div id="wpList"><div class="hint">Noch keine Wegpunkte.</div></div>
+
+      <div class="card collapsible collapsed">
+        <div class="section-title">Wegpunkte &amp; Peilung</div>
+        <div class="target-arrow" style="width:150px;height:150px"><div class="ta-ring"></div><div class="ta-pointer" id="taPointer">⬆️</div></div>
+        <div class="grid">
+          <div class="metric"><div class="label">📏 Entfernung</div><div class="value"><span id="navDist">--</span> <span class="unit" id="navDistU">m</span></div></div>
+          <div class="metric"><div class="label">🧭 Peilung</div><div class="value"><span id="navBear">--</span> <span class="unit">°</span></div></div>
+        </div>
+        <button id="saveWpBtn" class="b-soft full-btn" style="margin-top:10px">＋ Aktuellen Ort als Wegpunkt</button>
+        <div id="wpList" style="margin-top:8px"><div class="hint">Noch keine Wegpunkte.</div></div>
       </div>
     </div>
 

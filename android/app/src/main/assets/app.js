@@ -664,6 +664,7 @@
     $("navTarget").textContent = (name ? name + " · " : "") + lat.toFixed(5) + ", " + lon.toFixed(5);
     if (map) { var ll = [lat, lon]; if (!targetMarker) targetMarker = L.marker(ll).addTo(map); else targetMarker.setLatLng(ll); }
     if (hasNative()) { try { window.Android.setCarTarget(lat, lon, name || "Ziel"); } catch (e) {} }
+    addRecent(lat, lon, name);
     updateNavArrow();
   }
   // ===== Zwischenstopps & Vermeidungen =====
@@ -708,6 +709,93 @@
   }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (m) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m]; }); }
   if (target) $("navTarget").textContent = (target.name ? target.name + " · " : "") + target.lat.toFixed(5) + ", " + target.lon.toFixed(5);
+
+  // ===== Schnellziele (Favoriten) & Verlauf =====
+  function goTo(lat, lon, name, zoom) {
+    pickPlace(lat, lon, name); if (!stopMode) toast("Ziel: " + (name || "gesetzt"));
+    switchTab("nav"); ensureMap(); if (map) { followMe = false; map.setView([lat, lon], zoom || 14); }
+  }
+  function favGet(k) { try { return JSON.parse(LS.getItem(k) || "null"); } catch (e) { return null; } }
+  function favSave(k, o) { LS.setItem(k, JSON.stringify(o)); refreshFavButtons(); }
+  function refreshFavButtons() {
+    var h = favGet("gg_home"), w = favGet("gg_work");
+    if ($("favHome")) $("favHome").textContent = "🏠 " + (h && h.name ? h.name : "Zuhause");
+    if ($("favWork")) $("favWork").textContent = "💼 " + (w && w.name ? w.name : "Arbeit");
+  }
+  function favClick(k, label) {
+    var f = favGet(k);
+    if (f) { goTo(f.lat, f.lon, f.name || label); return; }
+    var src = target || lastFix;
+    if (!src) { toast("Erst ein Ziel suchen oder die App einschalten."); return; }
+    var nm = (target && target.name) ? target.name : label;
+    favSave(k, { lat: src.lat, lon: src.lon, name: nm });
+    toast(label + " gespeichert.");
+  }
+  if ($("favHome")) $("favHome").onclick = function () { favClick("gg_home", "Zuhause"); };
+  if ($("favWork")) $("favWork").onclick = function () { favClick("gg_work", "Arbeit"); };
+  if ($("favSet")) $("favSet").onclick = function () {
+    if (!target) { toast("Erst ein Ziel setzen, dann als Favorit speichern."); return; }
+    var k = confirm("Aktuelles Ziel als ZUHAUSE speichern?\n(Abbrechen = als ARBEIT speichern)") ? "gg_home" : "gg_work";
+    favSave(k, { lat: target.lat, lon: target.lon, name: target.name || (k === "gg_home" ? "Zuhause" : "Arbeit") });
+    toast("Favorit gespeichert.");
+  };
+  refreshFavButtons();
+
+  function loadRecents() { try { return JSON.parse(LS.getItem("gg_recents") || "[]"); } catch (e) { return []; } }
+  function addRecent(lat, lon, name) {
+    if (lat == null || lon == null || isNaN(lat) || isNaN(lon)) return;
+    var r = loadRecents().filter(function (x) { return haversine(x.lat, x.lon, lat, lon) > 40; });
+    r.unshift({ lat: lat, lon: lon, name: name || (lat.toFixed(4) + ", " + lon.toFixed(4)), t: Date.now() });
+    if (r.length > 8) r = r.slice(0, 8);
+    LS.setItem("gg_recents", JSON.stringify(r)); renderRecents();
+  }
+  function renderRecents() {
+    var c = $("recentList"); if (!c) return; var r = loadRecents();
+    if (!r.length) { c.innerHTML = '<div class="hint" style="text-align:left">Zuletzt gesuchte Ziele erscheinen hier.</div>'; return; }
+    c.innerHTML = "";
+    r.forEach(function (x) {
+      var row = document.createElement("div"); row.className = "place-item";
+      var dd = lastFix ? fmtDist(haversine(lastFix.lat, lastFix.lon, x.lat, x.lon)) : null;
+      row.innerHTML = '<div class="pi-ico">🕘</div><div class="pi-main"><div class="pi-name">' + escapeHtml(x.name) + '</div><div class="pi-sub">' + x.lat.toFixed(4) + ", " + x.lon.toFixed(4) + '</div></div>' + (dd ? '<div class="pi-dist">' + dd.v + " " + dd.u + '</div>' : "");
+      row.onclick = function () { goTo(x.lat, x.lon, x.name); };
+      c.appendChild(row);
+    });
+  }
+  renderRecents();
+
+  // ===== POI-Suche in der Nähe (Overpass) =====
+  var poiTags = { fuel: "amenity=fuel", parking: "amenity=parking", restaurant: "amenity=restaurant", cafe: "amenity=cafe", supermarket: "shop=supermarket", atm: "amenity=atm", pharmacy: "amenity=pharmacy", hotel: "tourism=hotel" };
+  var poiIco = { fuel: "⛽", parking: "🅿️", restaurant: "🍴", cafe: "☕", supermarket: "🛒", atm: "🏧", pharmacy: "💊", hotel: "🏨" };
+  var poiLbl = { fuel: "Tankstelle", parking: "Parkplatz", restaurant: "Restaurant", cafe: "Café", supermarket: "Supermarkt", atm: "Geldautomat", pharmacy: "Apotheke", hotel: "Hotel" };
+  function poiSearch(cat) {
+    if (!lastFix) { toast("Erst die App einschalten (Schalter oben), dann Umkreissuche."); return; }
+    if (!needOnline()) { $("poiList").innerHTML = '<div class="hint">📡 Offline – Umkreissuche braucht Internet.</div>'; return; }
+    Array.prototype.forEach.call($("poiRow").children, function (b) { b.classList.toggle("sel", b.getAttribute("data-poi") === cat); });
+    $("poiList").innerHTML = '<div class="hint">Suche in der Nähe…</div>';
+    var kv = (poiTags[cat] || "amenity=fuel").split("="), r = 3000;
+    var q = "[out:json][timeout:25];(node[" + kv[0] + "=" + kv[1] + "](around:" + r + "," + lastFix.lat + "," + lastFix.lon + "););out body 40;";
+    httpJson("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(q)).then(function (j) {
+      if (!j || !j.elements || !j.elements.length) { $("poiList").innerHTML = '<div class="hint">Nichts im Umkreis gefunden.</div>'; return; }
+      var arr = j.elements.filter(function (e) { return e.lat != null; }).map(function (e) {
+        var nm = (e.tags && (e.tags.name || e.tags.brand || e.tags.operator)) || poiLbl[cat] || "Ort";
+        return { lat: e.lat, lon: e.lon, name: nm, d: haversine(lastFix.lat, lastFix.lon, e.lat, e.lon) };
+      });
+      arr.sort(function (a, b) { return a.d - b.d; });
+      renderPoi(arr.slice(0, 12), cat);
+    });
+  }
+  function renderPoi(arr, cat) {
+    var c = $("poiList"); c.innerHTML = "";
+    arr.forEach(function (x) {
+      var row = document.createElement("div"); row.className = "place-item";
+      var dd = fmtDist(x.d);
+      row.innerHTML = '<div class="pi-ico">' + (poiIco[cat] || "📍") + '</div><div class="pi-main"><div class="pi-name">' + escapeHtml(x.name) + '</div><div class="pi-sub">' + (poiLbl[cat] || "Ort") + '</div></div><div class="pi-dist">' + dd.v + " " + dd.u + '</div>';
+      row.onclick = function () { goTo(x.lat, x.lon, x.name, 15); };
+      c.appendChild(row);
+    });
+  }
+  if ($("poiRow")) Array.prototype.forEach.call($("poiRow").children, function (b) { b.onclick = function () { poiSearch(b.getAttribute("data-poi")); }; });
+
   renderWps(); renderTours(); renderStops();
   if ($("stopModeTgl")) { $("stopModeTgl").classList.toggle("on", stopMode); $("stopModeTgl").onclick = function () { stopMode = !stopMode; this.classList.toggle("on", stopMode); }; }
   if ($("stopsClear")) $("stopsClear").onclick = function () { routeStops = []; LS.setItem("gg_stops", "[]"); renderStops(); };
@@ -915,7 +1003,8 @@
       var nxt = routeSteps[routeStepIdx + 1] || s, after = routeSteps[routeStepIdx + 2];
       $("nbArrow").textContent = nxt.icon || "⬆️"; $("nbInstr").textContent = nxt.instr;
       var dd = fmtDist(dToMan); $("nbDist").textContent = "in " + dd.v + " " + dd.u + (after ? "  ›  danach " + (after.icon || "") : "");
-      $("nbEta").textContent = "Ankunft ~" + arr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " · noch " + ed.v + " " + ed.u + " · " + fmtDur(eta.time);
+      var spdTxt = (lastFix.speed != null && !isNaN(lastFix.speed)) ? " · " + fmtSpeed(lastFix.speed) + " " + (isImp() ? "mph" : "km/h") : "";
+      $("nbEta").textContent = "Ankunft ~" + arr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " · noch " + ed.v + " " + ed.u + " · " + fmtDur(eta.time) + spdTxt;
       if (map && followMe) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16));
       if (routeShape.length && distToRoute(lastFix.lat, lastFix.lon) > 60 && Date.now() - lastReroute > 8000) { lastReroute = Date.now(); toast("Route wird neu berechnet…"); if (voiceOn) speak("Route wird neu berechnet."); calcRoute(); return; }
     }
