@@ -66,18 +66,21 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.16
-          name: GeoPilot v3.16
+          tag_name: v3.17
+          name: GeoPilot v3.17
           body: |
-            GeoPilot 3.16 – klare Navigations-Meldungen + Android-Auto-Hilfe.
+            GeoPilot 3.17 – nutzbare Navigation: Auto-Route, „Losfahren", Demo.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Navigation sagt jetzt, woran es liegt:** statt stillem Fehlschlag klare
-              Hinweise – „Kein Ziel", „Kein Standort (Schalter an)", „Kein Internet"
-              oder „Router nicht erreichbar – erneut versuchen".
-            • **Robustere Routenberechnung:** wenn Valhalla nicht antwortet, wird OSRM
-              als Reserve für alle Modi genutzt.
-            • **Android-Auto-Anleitung** in der App (Mehr → „Android Auto einrichten"):
-              warum die App nur erscheint, wenn in Android Auto „Unbekannte Quellen"
-              aktiviert und das Handy mit dem Auto verbunden ist.
+            • **Route erscheint automatisch**, sobald du ein Ziel wählst (Adresse/POI/
+              Favorit) – Strecke, Dauer & Linie ohne Extra-Tipp.
+            • **▶︎ Losfahren:** ein Tipp berechnet (falls nötig) und startet die
+              Navigation mit Abbiege-Banner, ETA und – auf Wunsch – Sprachansagen.
+            • **🧪 Route abfahren (Demo):** fährt die Route sichtbar ab (bewegte Position,
+              Abbiege-Hinweise, Ansagen) – so kannst du die Navigation **ohne Autofahren
+              testen und sehen, dass sie funktioniert**.
+            • Robusteres Routing (Valhalla + OSRM-Reserve) & klare Fehlermeldungen.
+
+            Ablauf: Schalter oben AN → Tab „Ziel" → Adresse suchen → ▶︎ Losfahren
+            (oder 🧪 Demo zum Ausprobieren).
           files: android/GeoPilot.apk

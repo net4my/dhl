@@ -194,6 +194,7 @@
   // ================= Position =================
   var lastFix = null, lastRawHeading = null;
   function updateLocation(p) {
+    if (typeof simActive !== "undefined" && simActive) return; // während Demo echte Fixes ignorieren
     lastFix = p;
     if (p.declination != null && !isNaN(p.declination)) { declination = p.declination; $("declHint").textContent = "Missweisung: " + (p.declination >= 0 ? "+" : "") + p.declination.toFixed(1) + "° (" + (p.declination >= 0 ? "Ost" : "West") + ")"; }
     $("lat").textContent = fmt(p.lat, 6); $("lon").textContent = fmt(p.lon, 6);
@@ -762,6 +763,13 @@
     if (hasNative()) { try { window.Android.setCarTarget(lat, lon, name || "Ziel"); } catch (e) {} }
     addRecent(lat, lon, name);
     updateNavArrow();
+    maybeAutoRoute();
+  }
+  var autoRouteT = null;
+  function maybeAutoRoute() {
+    if (!target || !lastFix || navigator.onLine === false || navActive) return;
+    if (autoRouteT) clearTimeout(autoRouteT);
+    autoRouteT = setTimeout(function () { if (typeof calcRoute === "function") calcRoute(); }, 450);
   }
   // ===== Zwischenstopps & Vermeidungen =====
   var routeStops = []; try { routeStops = JSON.parse(LS.getItem("gg_stops") || "[]"); } catch (e) { routeStops = []; }
@@ -1116,12 +1124,41 @@
     else if (voiceOn && dToMan < 180 && !s._ann) { s._ann = true; var d2 = fmtDist(dToMan); speak("In " + d2.v + " " + (d2.u === "km" ? "Kilometern" : "Metern") + ": " + s.instr); }
   }
   function startNav() { if (!routeSteps.length) { pendingNavStart = true; calcRoute(); return; } navActive = true; arrived = false; followMe = true; $("navBanner").classList.add("show"); $("navStartBtn").textContent = "⏹ Navigation läuft"; switchTab("map"); if (voiceOn) speak("Navigation gestartet."); routeProgress(); }
-  function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Navigation starten"; }
+  function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Losfahren"; }
+
+  // ===== Demo-/Simulationsmodus: Route sichtbar abfahren =====
+  var simTimer = null, simIdx = 0, simActive = false;
+  function startSim() {
+    if (!routeShape || routeShape.length < 2) { toast("Erst eine Route berechnen."); return; }
+    stopSim(true);
+    simActive = true; navActive = true; arrived = false; followMe = true;
+    simIdx = 0; routeStepIdx = 0; routeSteps.forEach(function (s) { s._ann = false; });
+    $("navBanner").classList.add("show"); ensureMap(); switchTab("map");
+    if ($("simBtn")) { $("simBtn").textContent = "⏹ Demo stoppen"; $("simBtn").className = "b-danger full-btn"; }
+    if (voiceOn) speak("Demo-Navigation gestartet.");
+    simTimer = setInterval(simTick, 180);
+  }
+  function stopSim(silent) {
+    if (simTimer) { clearInterval(simTimer); simTimer = null; }
+    simActive = false;
+    if ($("simBtn")) { $("simBtn").textContent = "🧪 Route abfahren (Demo)"; $("simBtn").className = "b-warn full-btn"; }
+    if (!silent) { navActive = false; $("navBanner").classList.remove("show"); }
+  }
+  function simTick() {
+    if (arrived || simIdx >= routeShape.length) { if (voiceOn && !arrived) speak("Demo beendet."); stopSim(false); toast("Demo beendet."); return; }
+    var p = routeShape[simIdx], np = routeShape[Math.min(simIdx + 1, routeShape.length - 1)];
+    var brg = bearing(p[0], p[1], np[0], np[1]);
+    smooth = brg; lastRawHeading = brg;
+    lastFix = { lat: p[0], lon: p[1], alt: null, acc: 5, speed: 13.8, bearing: brg, time: Date.now(), provider: "Demo" };
+    onMapLocation(lastFix); updateNavArrow(); updateQuickTiles(lastFix); routeProgress();
+    simIdx += 1;
+  }
+  if ($("simBtn")) $("simBtn").onclick = function () { if (simActive) stopSim(false); else startSim(); };
   $("routeBtn").onclick = function () { calcRoute(); };
   $("navStartBtn").onclick = function () { if (navActive) stopNav(); else startNav(); };
   $("navStopBtn").onclick = stopNav;
   if ($("navRecenter")) $("navRecenter").onclick = function () { followMe = true; if (map && lastFix) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16)); };
-  $("routeClearBtn").onclick = function () { stopNav(); if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; routeShape = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
+  $("routeClearBtn").onclick = function () { stopSim(true); stopNav(); if (routeLine && map) map.removeLayer(routeLine); routeLine = null; routeSteps = []; routeShape = []; $("steps").innerHTML = ""; $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; };
 
   // ================= Flugradar (FR24-Stil – echte ADS-B-Daten) =================
   var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 8000, flugAutoOn = true, flugVisible = false;
