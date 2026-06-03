@@ -48,27 +48,29 @@
   .card.collapsible.open>.section-title .chev{transform:rotate(180deg);}
 
   .compass-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
-  .compass{position:relative;width:210px;height:210px;}
+  .compass{position:relative;width:220px;height:220px;border-radius:50%;overflow:hidden;border:3px solid var(--bg-card);background:var(--bg-soft);box-shadow:0 6px 20px rgba(16,24,40,.18), inset 0 0 0 1px var(--border);}
+  #compassMap{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#0b1220;z-index:0;}
+  .dir-cone{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;transition:transform .12s linear;}
+  .dir-cone polygon{fill:var(--primary);stroke:#fff;stroke-width:2.5;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));}
   .rose{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#1e293b,#0b1220 25%,#1e293b 50%,#0b1220 75%,#1e293b);border:2px solid var(--border);box-shadow:inset 0 0 40px rgba(0,0,0,.6);transition:transform .12s linear;}
   [data-theme="light"] .rose{background:conic-gradient(from 0deg,#eef2f8,#dbe3ee 25%,#eef2f8 50%,#dbe3ee 75%,#eef2f8);box-shadow:inset 0 0 24px rgba(16,24,40,.07);}
   [data-theme="night"] .rose{background:#0a0000;}
-  .ticks{position:absolute;inset:0;}
-  .tick{position:absolute;left:50%;top:50%;width:2px;height:105px;transform-origin:bottom center;}
-  .tick i{display:block;width:2px;height:9px;background:var(--text-muted);margin:0 auto;}
-  .tick.major i{height:15px;width:3px;background:var(--text-main);}
-  .card-letter{position:absolute;left:50%;top:50%;transform-origin:center -76px;font-weight:800;font-size:14px;}
-  .N{color:var(--danger);}
+  .ticks{position:absolute;inset:0;z-index:2;pointer-events:none;}
+  .tick{position:absolute;left:50%;top:50%;width:2px;height:110px;transform-origin:bottom center;}
+  .tick i{display:block;width:2px;height:8px;background:#ffffffcc;margin:0 auto;filter:drop-shadow(0 0 1px rgba(0,0,0,.5));}
+  .tick.major i{height:14px;width:3px;background:#fff;}
+  .card-letter{position:absolute;left:50%;top:50%;transform-origin:center -90px;font-weight:800;font-size:13px;}
+  .card-letter span{display:inline-block;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);border-radius:6px;padding:0 5px;line-height:17px;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .N span{color:var(--danger);}
   .needle{position:absolute;left:50%;top:8px;bottom:8px;width:0;transform-origin:bottom center;transform:translateX(-50%);}
   .needle::before,.needle::after{content:"";position:absolute;left:-7px;width:14px;}
   .needle::before{top:0;height:50%;background:linear-gradient(var(--danger),#7f1d1d);clip-path:polygon(50% 0,100% 100%,0 100%);}
   .needle::after{bottom:0;height:50%;background:linear-gradient(#1e293b,#334155);clip-path:polygon(0 0,100% 0,50% 100%);}
-  .sun-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:18px;line-height:1;transform-origin:center;transition:transform .3s;pointer-events:none;text-align:center;}
-  .tgt-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:16px;line-height:1;transform-origin:center;transition:transform .2s;pointer-events:none;text-align:center;}
-  #compassMap{height:210px;width:100%;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#0b1220;}
-  .cm-arrow{font-size:30px;line-height:1;transition:transform .12s linear;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
+  .sun-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:18px;line-height:1;transform-origin:center;transition:transform .3s;pointer-events:none;text-align:center;z-index:3;}
+  .tgt-dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;font-size:16px;line-height:1;transform-origin:center;transition:transform .2s;pointer-events:none;text-align:center;z-index:4;}
   .progress{height:11px;border-radius:999px;background:var(--bg-body);border:1px solid var(--border);overflow:hidden;margin:10px 0 4px;}
   .progress>div{height:100%;background:linear-gradient(90deg,var(--primary),var(--secondary));width:0;transition:width .4s;}
-  .hub{position:absolute;left:50%;top:50%;width:15px;height:15px;border-radius:50%;background:var(--text-main);transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--bg-soft);}
+  .hub{position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;background:var(--primary);transform:translate(-50%,-50%);box-shadow:0 0 0 3px #fff, 0 1px 3px rgba(0,0,0,.4);z-index:5;}
   .heading-deg{font-size:2.1rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
   .heading-card{font-size:.9rem;color:var(--primary);font-weight:700;letter-spacing:2px;}
   .level{width:50px;height:50px;border-radius:50%;border:2px solid var(--border);position:relative;margin:2px auto 0;background:var(--bg-body);overflow:hidden;}
@@ -232,9 +234,9 @@
       <div class="card">
         <div class="compass-wrap">
           <div class="compass">
-            <div id="rose" class="rose"></div>
+            <div id="compassMap"></div>
             <div id="ticks" class="ticks"></div>
-            <div class="needle"></div>
+            <svg class="dir-cone" id="dirCone" viewBox="-50 -50 100 100" aria-hidden="true"><polygon points="0,-44 12,4 0,-7 -12,4"></polygon></svg>
             <div id="sunDot" class="sun-dot" style="display:none">☀️</div>
             <div id="tgtDot" class="tgt-dot" style="display:none">🎯</div>
             <div class="hub"></div>
@@ -260,14 +262,6 @@
         <div class="tile"><div class="v"><span id="qAcc">--</span></div><div class="l">± Meter</div></div>
       </div>
 
-      <div class="card">
-        <div class="section-title">Karte &amp; Richtung</div>
-        <div id="compassMap"></div>
-        <div class="grid" style="margin-top:10px">
-          <div class="metric"><div class="label">🧭 Blickrichtung</div><div class="value" id="cmHdg" style="font-size:.95rem">--</div></div>
-          <div class="metric"><div class="label">🎯 Zum Ziel</div><div class="value" id="cmTgt" style="font-size:.95rem">–</div></div>
-        </div>
-      </div>
 
       <div class="card collapsible collapsed">
         <div class="section-title">Positions-Sicherheit</div>
@@ -586,7 +580,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.4 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.5 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -639,7 +633,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.4 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.5 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

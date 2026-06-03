@@ -166,12 +166,11 @@
     if (deg == null || isNaN(deg)) return;
     deg = effHeading((deg % 360 + 360) % 360); heading = deg;
     if (smooth == null) smooth = deg; else { var diff = ((deg - smooth + 540) % 360) - 180; smooth = (smooth + diff * 0.18 + 360) % 360; }
-    $("rose").style.transform = "rotate(" + (-smooth) + "deg)";
+    var dc = $("dirCone"); if (dc) dc.style.transform = "rotate(" + smooth + "deg)";
     $("hdgDeg").textContent = Math.round(smooth); $("hdgCard").textContent = cardinal(smooth);
     if (source) $("hdgSource").textContent = "Sensor: " + source + (northRef === "true" ? " · echt N" : " · magn. N");
     $("hudHdg").textContent = Math.round(smooth) + "° " + cardinal(smooth);
     if ($("cmHdg")) $("cmHdg").textContent = Math.round(smooth) + "° " + cardinal(smooth);
-    rotateCompassArrow(smooth);
     updateNavArrow();
   }
 
@@ -413,21 +412,13 @@
   function ensureCompassMap() {
     if (compassMap || typeof L === "undefined" || !document.getElementById("compassMap")) { if (compassMap) setTimeout(function () { compassMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
-    compassMap = L.map("compassMap", { zoomControl: false, attributionControl: false, doubleClickZoom: false }).setView(c, lastFix ? 16 : 5);
+    compassMap = L.map("compassMap", { zoomControl: false, attributionControl: false, doubleClickZoom: false, dragging: false, scrollWheelZoom: false, touchZoom: false, keyboard: false, tap: false }).setView(c, lastFix ? 16 : 5);
     compassBaseLayer = makeBaseLayer(); compassBaseLayer.addTo(compassMap);
-    compassMarker = L.marker(c, { icon: L.divIcon({ className: "", html: '<div class="cm-arrow">⬆️</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(compassMap);
-    setTimeout(function () { compassMap.invalidateSize(); rotateCompassArrow(smooth || 0); }, 80);
+    setTimeout(function () { compassMap.invalidateSize(); }, 80);
   }
   function updateCompassMap(p) {
     if (!compassMap) { ensureCompassMap(); return; }
-    var ll = [p.lat, p.lon];
-    if (compassMarker) compassMarker.setLatLng(ll);
-    compassMap.setView(ll, Math.max(compassMap.getZoom(), 15), { animate: true });
-  }
-  function rotateCompassArrow(deg) {
-    if (!compassMarker || deg == null) return;
-    var el = compassMarker.getElement ? compassMarker.getElement() : null; if (!el) return;
-    var a = el.querySelector(".cm-arrow"); if (a) a.style.transform = "rotate(" + deg + "deg)";
+    compassMap.setView([p.lat, p.lon], Math.max(compassMap.getZoom(), 16), { animate: true });
   }
 
   // ================= Track-Aufzeichnung =================
