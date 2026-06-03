@@ -192,10 +192,35 @@
   #nbDist{font-size:.95rem;opacity:.9;margin-top:2px;font-weight:700;}
   .nb-sub{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:.8rem;font-weight:700;opacity:.95;}
   .nb-sub button{background:rgba(0,0,0,.25);padding:7px 12px;font-size:.78rem;width:auto;}
-  /* Flug-Tab */
-  #page-flug.active{display:flex;flex-direction:column;padding:0;}
-  #flugMap{height:54%;width:100%;background:#0b1220;}
-  #flugListWrap{flex:1;overflow-y:auto;padding:12px;}
+  /* Flug-Tab (Karte zuerst, FR24-Stil) */
+  #page-flug.active{display:block;padding:0;overflow:hidden;}
+  #flugMap{position:absolute;inset:0;width:100%;height:100%;background:#0b1220;}
+  .flug-top{position:absolute;top:8px;left:8px;right:8px;z-index:600;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+  .flug-search{display:flex;gap:6px;pointer-events:auto;}
+  .flug-search input{box-shadow:0 4px 14px rgba(0,0,0,.22);}
+  .flug-search button{width:auto;padding:0 16px;box-shadow:0 4px 14px rgba(0,0,0,.22);}
+  .flug-chips{display:flex;gap:6px;overflow-x:auto;pointer-events:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .flug-chips button{flex:0 0 auto;width:auto;padding:6px 12px;font-size:.76rem;font-weight:700;border-radius:999px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.18);}
+  .flug-chips button.sel{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border-color:transparent;}
+  .flug-fabs{position:absolute;right:8px;top:104px;z-index:600;display:flex;flex-direction:column;gap:8px;}
+  .flug-fab{width:44px;height:44px;border-radius:50%;padding:0;font-size:18px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;}
+  .flug-fab.on{background:linear-gradient(135deg,var(--success),#047857);color:#fff;border-color:transparent;}
+  #flugSheet{position:absolute;left:0;right:0;bottom:0;z-index:650;background:var(--bg-card);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -6px 24px rgba(0,0,0,.28);max-height:46%;display:flex;flex-direction:column;transition:transform .28s ease;}
+  #flugSheet.collapsed{transform:translateY(calc(100% - 56px));}
+  .sheet-handle{display:flex;justify-content:center;padding:8px 0 2px;cursor:pointer;}
+  .sheet-handle span{width:42px;height:5px;border-radius:999px;background:var(--border);}
+  .sheet-head{padding:4px 14px 8px;cursor:pointer;}
+  .sheet-body{overflow-y:auto;padding:0 12px 14px;}
+  /* Karten-Labels für Flugzeuge */
+  .plane-wrap{position:relative;}
+  .plane-lbl{position:absolute;left:16px;top:-2px;white-space:nowrap;font-size:9px;font-weight:800;line-height:1.05;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;pointer-events:none;}
+  .plane-lbl .alt{font-weight:600;opacity:.92;}
+  /* Flug-Detail als Bottom-Sheet (Karte bleibt sichtbar) */
+  #flugDetail{justify-content:flex-end;align-items:stretch;background:rgba(0,0,0,.45);padding:0;}
+  #flugDetail .fd-sheet{background:var(--bg-card);width:100%;max-height:84%;overflow-y:auto;border-top-left-radius:20px;border-top-right-radius:20px;padding:6px 16px 28px;box-shadow:0 -8px 30px rgba(0,0,0,.4);text-align:left;}
+  #flugDetail .fd-sheet .close{position:sticky;top:6px;float:right;background:#334155;color:#fff;border-radius:10px;padding:8px 12px;font-size:.8rem;z-index:2;}
+  .fd-grip{display:flex;justify-content:center;padding:2px 0 8px;}
+  .fd-grip span{width:42px;height:5px;border-radius:999px;background:var(--border);}
   /* Tracking-Tab */
   #page-tracking.active{display:flex;flex-direction:column;padding:0;}
   #trackMap{height:38%;width:100%;background:#0b1220;}
@@ -526,24 +551,32 @@
     <!-- FLUG -->
     <div class="page" id="page-flug">
       <div id="flugMap"></div>
-      <button id="layerBtn3" class="b-soft" style="position:absolute;top:8px;right:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛰️ Ebene</button>
-      <button id="airportBtn" class="b-soft" style="position:absolute;top:8px;left:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛫 Flughäfen</button>
-      <div id="flugListWrap">
-        <div class="section-title" style="margin-top:2px">✈ Flüge in der Nähe <span class="src-tag" id="flugCount">–</span></div>
-        <input type="text" id="flugSearch" placeholder="🔎 Rufzeichen / Kennzeichen / Typ filtern" style="margin-bottom:8px" />
-        <select id="flugFilter" style="margin-bottom:10px">
-          <option value="all">Alle Flüge</option>
-          <option value="high">ab 10.000 ft</option>
-          <option value="climb">↗ Steigflug</option>
-          <option value="descend">↘ Sinkflug</option>
-          <option value="emerg">⚠ Notfälle</option>
-        </select>
-        <div class="btn-row" style="margin-bottom:10px">
-          <button id="flugRefresh" class="b-primary">🔄 Aktualisieren</button>
-          <button id="flugAuto" class="b-success">⏯ Auto-Refresh: an</button>
+      <div class="flug-top">
+        <div class="flug-search">
+          <input type="text" id="flugSearch" placeholder="🔎 Rufzeichen oder Kennzeichen suchen" />
+          <button id="flugSearchBtn" class="b-primary">🔍</button>
         </div>
-        <div class="hint" style="text-align:left;margin-bottom:8px">Tippe auf einen Flug für Details: Route von→nach, Airline, Flugzeugtyp &amp; Foto.</div>
-        <div id="flugList"><div class="hint">Lade Flüge in der Kartenumgebung…</div></div>
+        <div class="flug-chips" id="flugChips">
+          <button data-f="all" class="sel">Alle</button>
+          <button data-f="high">≥10k ft</button>
+          <button data-f="climb">↗ Steigt</button>
+          <button data-f="descend">↘ Sinkt</button>
+          <button data-f="emerg">⚠ Notfall</button>
+        </div>
+      </div>
+      <div class="flug-fabs">
+        <button id="layerBtn3" class="flug-fab" title="Kartenebene">🛰️</button>
+        <button id="labelBtn" class="flug-fab" title="Labels auf der Karte">🏷️</button>
+        <button id="airportBtn" class="flug-fab" title="Flughäfen">🛫</button>
+        <button id="flugAuto" class="flug-fab on" title="Auto-Aktualisierung">⏯</button>
+        <button id="flugRefresh" class="flug-fab" title="Jetzt aktualisieren">🔄</button>
+      </div>
+      <div id="flugSheet">
+        <div class="sheet-handle" id="flugSheetHandle"><span></span></div>
+        <div class="sheet-head" id="flugSheetHead">
+          <div class="section-title" style="margin:0">✈ Flüge in Sicht <span class="src-tag" id="flugCount">–</span></div>
+        </div>
+        <div id="flugList" class="sheet-body"><div class="hint">Lade Flüge in der Kartenumgebung…</div></div>
       </div>
     </div>
 
@@ -652,21 +685,22 @@
         <li><b>🎯 Ziel</b> – Adress-Suche, Navigation (Auto/Fuß/Rad), Wegpunkte, Ankunfts-Alarm, Sprachhinweise.</li>
         <li><b>📍 Tracking</b> – große Live-Werte, eigene Karte, Aufzeichnung, Höhenprofil, Touren speichern, GPX-Im-/Export.</li>
         <li><b>🛰️ Sat</b> – Satelliten/GNSS-Status (Anzahl, Signal, Systeme).</li>
-        <li><b>✈️ Flug</b> – Live-Flugzeuge in der Umgebung mit Liste.</li>
+        <li><b>✈️ Flug</b> – Vollbild-Flugradar: Live-Flugzeuge auf der Karte (mit Labels), Flug-Suche &amp; Detail-Sheet.</li>
         <li><b>⚙️ Mehr</b> – Akku &amp; Laufzeit, Einheiten, Nordreferenz, Design/Nachtmodus, Notfall-SOS.</li>
       </ul>
       <h3>🔋 Damit der Akku durchhält</h3>
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.6 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.8 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 
-  <!-- Flug-Detail Overlay -->
+  <!-- Flug-Detail als Bottom-Sheet -->
   <div class="overlay" id="flugDetail">
-    <div class="help-box">
-      <button class="close" id="flugDetClose">✖ Schließen</button>
+    <div class="fd-sheet">
+      <div class="fd-grip" id="flugDetGrip"><span></span></div>
+      <button class="close" id="flugDetClose">✖</button>
       <div id="flugDetBody"></div>
     </div>
   </div>

@@ -1023,9 +1023,19 @@
   var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 8000, flugAutoOn = true, flugVisible = false;
   var followFlugHex = null, lastPlanes = [], flugFilter = "all", flugQuery = "", trailPts = [], acCache = {}, routeCache = {}, detailHex = null, flugRouteLayer = null;
   var flugMarkers = {}, flugAnim = null, airportsOn = false, airportLayer = null, airportTimer = null;
+  var labelsOn = LS.getItem("gg_flbl") === "1";
+  function makeLabel(p) {
+    if (!labelsOn) return null;
+    var alt = p.alt != null ? (p.alt >= 18000 ? "FL" + Math.round(p.alt / 100) : Math.round(p.alt).toLocaleString("de-DE") + "ft") : "";
+    return { cs: escapeHtml(p.flight || p.hex), alt: alt };
+  }
   function isEmergency(sq) { return sq === "7500" || sq === "7600" || sq === "7700"; }
   function altColor(ft, emerg) { if (emerg) return "#ef4444"; if (ft == null) return "#94a3b8"; if (ft < 3000) return "#f59e0b"; if (ft < 10000) return "#fbbf24"; if (ft < 20000) return "#34d399"; if (ft < 30000) return "#38bdf8"; return "#818cf8"; }
-  function planeIcon(track, color, sel) { return L.divIcon({ className: "", html: '<svg width="24" height="24" viewBox="0 0 24 24" style="transform:rotate(' + (track || 0) + 'deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))"><path fill="' + color + '" stroke="' + (sel ? "#fff" : "rgba(0,0,0,.4)") + '" stroke-width="' + (sel ? 1 : 0.5) + '" d="M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>', iconSize: [24, 24], iconAnchor: [12, 12] }); }
+  function planeIcon(track, color, sel, label) {
+    var svg = '<svg width="24" height="24" viewBox="0 0 24 24" style="transform:rotate(' + (track || 0) + 'deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))"><path fill="' + color + '" stroke="' + (sel ? "#fff" : "rgba(0,0,0,.4)") + '" stroke-width="' + (sel ? 1 : 0.5) + '" d="M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>';
+    var lbl = label ? '<div class="plane-lbl">' + label.cs + (label.alt ? '<div class="alt">' + label.alt + '</div>' : "") + '</div>' : "";
+    return L.divIcon({ className: "", html: '<div class="plane-wrap">' + svg + lbl + "</div>", iconSize: [24, 24], iconAnchor: [12, 12] });
+  }
   function ensureFlugMap() {
     if (flugMap || typeof L === "undefined") { if (flugMap) setTimeout(function () { flugMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
@@ -1115,13 +1125,14 @@
     planes.forEach(function (p) {
       seen[p.hex] = 1;
       var emerg = isEmergency(p.squawk), sel = (followFlugHex === p.hex), col = altColor(p.alt, emerg), rec = flugMarkers[p.hex];
+      var lblKey = labelsOn ? ((p.flight || "") + "|" + (p.alt || "")) : "";
       if (!rec) {
-        var m = L.marker([p.lat, p.lon], { icon: planeIcon(p.trk, col, sel) });
+        var m = L.marker([p.lat, p.lon], { icon: planeIcon(p.trk, col, sel, makeLabel(p)) });
         m.on("click", (function (hex) { return function () { openDetail(hex); }; })(p.hex));
-        m.addTo(flugLayer); flugMarkers[p.hex] = { marker: m, trk: p.trk, col: col, sel: sel };
+        m.addTo(flugLayer); flugMarkers[p.hex] = { marker: m, trk: p.trk, col: col, sel: sel, lblKey: lblKey };
       } else {
         rec.marker.setLatLng([p.lat, p.lon]);
-        if (rec.trk !== p.trk || rec.col !== col || rec.sel !== sel) { rec.marker.setIcon(planeIcon(p.trk, col, sel)); rec.trk = p.trk; rec.col = col; rec.sel = sel; }
+        if (rec.trk !== p.trk || rec.col !== col || rec.sel !== sel || rec.lblKey !== lblKey) { rec.marker.setIcon(planeIcon(p.trk, col, sel, makeLabel(p))); rec.trk = p.trk; rec.col = col; rec.sel = sel; rec.lblKey = lblKey; }
       }
     });
     Object.keys(flugMarkers).forEach(function (hex) { if (!seen[hex]) { flugLayer.removeLayer(flugMarkers[hex].marker); delete flugMarkers[hex]; } });
@@ -1245,15 +1256,53 @@
     $("fdCenter").onclick = function () { if (p.lat) { closeDetail(); flugMap.setView([p.lat, p.lon], Math.max(flugMap.getZoom(), 10)); } };
   }
   $("flugDetClose").onclick = closeDetail;
+  if ($("flugDetGrip")) $("flugDetGrip").onclick = closeDetail;
+  // ===== Flug-Suche (lokal zentrieren, sonst weltweit) =====
+  function gotoGlobal(a) {
+    flugMap.setView([a.lat, a.lon], 8);
+    setTimeout(function () { loadFlights(); }, 60);
+    setTimeout(function () { openDetail(a.hex); }, 1000);
+  }
+  function searchFlight() {
+    var q = $("flugSearch").value.trim(); flugQuery = q;
+    if (!q) { drawFlights(); return; }
+    var s = q.toLowerCase();
+    var local = lastPlanes.filter(function (p) { return (p.flight || "").toLowerCase().indexOf(s) >= 0 || (p.reg || "").toLowerCase().indexOf(s) >= 0; });
+    if (local.length) { var f = local[0]; if (flugSheet()) flugSheet().classList.add("collapsed"); flugMap.setView([f.lat, f.lon], Math.max(flugMap.getZoom(), 9)); openDetail(f.hex); drawFlights(); return; }
+    if (navigator.onLine === false) { toast("Suche braucht Internet."); return; }
+    toast("Suche „" + q + "“ weltweit…");
+    httpJson("https://api.airplanes.live/v2/callsign/" + encodeURIComponent(q.toUpperCase())).then(function (j) {
+      if (j && j.ac && j.ac.length && j.ac[0].lat != null) { gotoGlobal(j.ac[0]); return; }
+      httpJson("https://api.airplanes.live/v2/reg/" + encodeURIComponent(q.toUpperCase())).then(function (j2) {
+        if (j2 && j2.ac && j2.ac.length && j2.ac[0].lat != null) gotoGlobal(j2.ac[0]);
+        else toast("„" + q + "“ nicht gefunden (evtl. am Boden/offline).");
+      });
+    });
+  }
+  function flugSheet() { return $("flugSheet"); }
+  $("flugSearchBtn").onclick = searchFlight;
+  $("flugSearch").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); searchFlight(); } });
   $("flugSearch").addEventListener("input", function () { flugQuery = this.value.trim(); drawFlights(); });
-  $("flugFilter").addEventListener("change", function () { flugFilter = this.value; drawFlights(); });
+  // ===== Filter-Chips =====
+  if ($("flugChips")) Array.prototype.forEach.call($("flugChips").children, function (b) {
+    b.onclick = function () {
+      flugFilter = b.getAttribute("data-f");
+      Array.prototype.forEach.call($("flugChips").children, function (x) { x.classList.toggle("sel", x === b); });
+      drawFlights();
+    };
+  });
+  // ===== Labels auf der Karte =====
+  if ($("labelBtn")) { $("labelBtn").classList.toggle("on", labelsOn); $("labelBtn").onclick = function () { labelsOn = !labelsOn; this.classList.toggle("on", labelsOn); LS.setItem("gg_flbl", labelsOn ? "1" : "0"); drawFlights(); }; }
+  // ===== Bottom-Sheet ein-/ausklappen =====
+  function toggleSheet() { var sh = $("flugSheet"); if (sh) sh.classList.toggle("collapsed"); }
+  if ($("flugSheetHandle")) $("flugSheetHandle").onclick = toggleSheet;
+  if ($("flugSheetHead")) $("flugSheetHead").onclick = toggleSheet;
   $("airportBtn").onclick = function () {
-    airportsOn = !airportsOn; this.className = airportsOn ? "b-primary" : "b-soft";
-    this.style.position = "absolute"; this.style.top = "8px"; this.style.left = "8px"; this.style.zIndex = "600"; this.style.width = "auto"; this.style.padding = "8px 11px"; this.style.fontSize = ".78rem";
+    airportsOn = !airportsOn; this.classList.toggle("on", airportsOn);
     if (airportsOn) { toast("Lade Flughäfen…"); loadAirports(); } else if (airportLayer) { airportLayer.clearLayers(); }
   };
   $("flugRefresh").onclick = function () { loadFlights(); };
-  $("flugAuto").onclick = function () { flugAutoOn = !flugAutoOn; this.textContent = "⏯ Auto-Refresh: " + (flugAutoOn ? "an" : "aus"); this.className = flugAutoOn ? "b-success" : "b-soft"; if (flugAutoOn) { if (flugVisible) { loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); } } else if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } };
+  $("flugAuto").onclick = function () { flugAutoOn = !flugAutoOn; this.classList.toggle("on", flugAutoOn); toast("Auto-Aktualisierung " + (flugAutoOn ? "an" : "aus")); if (flugAutoOn) { if (flugVisible) { loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); } } else if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } };
 
   // ================= Wetter (Open-Meteo) =================
   var lastWeather = 0;
