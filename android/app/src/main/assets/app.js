@@ -253,9 +253,10 @@
     } else { window.addEventListener("deviceorientationabsolute", handler, true); window.addEventListener("deviceorientation", handler, true); }
   }
   var appActive = false;
-  function startTracking() { appActive = true; if (hasNative()) { try { window.Android.startLocation(); } catch (e) {} setStatus("warn", "Suche Signal…"); } else startWeb(); }
+  function syncSwitch() { var t = $("masterToggle"); if (t) t.classList.toggle("on", appActive); }
+  function startTracking() { appActive = true; syncSwitch(); if (hasNative()) { try { window.Android.startLocation(); } catch (e) {} setStatus("warn", "Suche Signal…"); } else startWeb(); setTimeout(ensureCompassMap, 200); }
   function stopTracking() {
-    appActive = false;
+    appActive = false; syncSwitch();
     if (hasNative()) { try { window.Android.stopLocation(); } catch (e) {} }
     if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     // Alles, was Strom zieht, beenden:
@@ -263,13 +264,10 @@
     if (typeof pauseFlug === "function") pauseFlug();
     setStatus("", "Aus");
   }
-  function powerOn() { var ov = $("powerOverlay"); if (ov) ov.classList.add("hide"); startTracking(); setTimeout(ensureCompassMap, 200); if (!LS.getItem("gg_tour")) setTimeout(startTour, 500); }
-  function powerOff() { stopTracking(); var ov = $("powerOverlay"); if (ov) ov.classList.remove("hide"); }
-  if ($("powerOnBtn")) $("powerOnBtn").onclick = powerOn;
-  if ($("masterBtn")) $("masterBtn").onclick = function () { if (appActive) powerOff(); else powerOn(); };
+  if ($("masterBtn")) $("masterBtn").onclick = function () { if (appActive) stopTracking(); else startTracking(); };
 
-  $("startBtn").onclick = powerOn;
-  $("stopBtn").onclick = powerOff;
+  $("startBtn").onclick = startTracking;
+  $("stopBtn").onclick = stopTracking;
   $("calibBtn").onclick = function () { smooth = null; toast("Gerät in liegender Acht (∞) bewegen."); if (!hasNative()) enableWebCompass(); };
 
   function coordText() { return lastFix ? (lastFix.lat.toFixed(6) + ", " + lastFix.lon.toFixed(6)) : ""; }
@@ -1310,8 +1308,7 @@
   $("tourNext").onclick = function () { if (tourIdx < tourSteps.length - 1) { tourIdx++; renderTour(); } else endTour(); };
   $("tourSkip").onclick = endTour;
   $("tourBtn").onclick = startTour;
-  var autoOn = LS.getItem("gg_autoon") === "1";
-  if ($("autoOnTgl")) { $("autoOnTgl").classList.toggle("on", autoOn); $("autoOnTgl").onclick = function () { autoOn = !autoOn; this.classList.toggle("on", autoOn); LS.setItem("gg_autoon", autoOn ? "1" : "0"); }; }
+  if (!LS.getItem("gg_tour")) setTimeout(startTour, 700);
 
   $("resetBtn").onclick = function () {
     if (!window.confirm("Alle Wegpunkte, Touren und Einstellungen auf diesem Gerät löschen?")) return;
@@ -1373,7 +1370,6 @@
   })();
 
   // ================= Start =================
-  setStatus("", "Aus");
-  // Standard: App aus (Power-Screen sichtbar). Nur bei aktivierter Option automatisch an.
-  if (LS.getItem("gg_autoon") === "1") setTimeout(powerOn, 300);
+  setTimeout(ensureCompassMap, 400);
+  setStatus("", "Aus"); syncSwitch();
 })();

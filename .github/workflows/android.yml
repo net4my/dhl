@@ -66,15 +66,14 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.3
-          name: GeoPilot v3.3
+          tag_name: v3.4
+          name: GeoPilot v3.4
           body: |
-            GeoPilot 3.3 – echter Hauptschalter für die ganze App.
+            GeoPilot 3.4 – einfacher Ein/Aus-Schalter oben.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Power-Screen beim Start**: die App ist standardmäßig **AUS** und zeigt einen
-              großen **⏻ Einschalten**-Knopf. Erst danach sind GPS, Kompass & alle
-              Funktionen aktiv – im Aus-Zustand läuft nichts (Strom sparen).
-            • Wieder **ausschalten** über den Schalter oben rechts (Aktiv) oder ■ Stopp.
-            • Optional: **„Beim Start automatisch einschalten"** (Mehr → Darstellung).
+            • Statt Vollbild-Power-Screen jetzt ein **normaler Ein/Aus-Schiebeschalter oben
+              rechts** in der Kopfzeile. Die App bleibt bedienbar; **GPS/Sensoren laufen nur,
+              wenn der Schalter an ist** (Standard: aus → Strom sparen).
+            • Im Hintergrund stoppt GPS weiterhin automatisch.
           files: android/GeoPilot.apk
