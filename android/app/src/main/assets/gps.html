@@ -29,10 +29,10 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-body);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
-  .topbar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--border);}
+  .topbar{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;border-bottom:1px solid var(--border);background:var(--bg-card);}
   .logo{width:34px;height:34px;border-radius:10px;flex:none;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:18px;}
-  .title{font-size:1.05rem;font-weight:800;}
-  .status-pill{margin-left:auto;font-size:.68rem;font-weight:700;padding:5px 9px;border-radius:999px;background:var(--bg-soft);border:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+  .title{font-size:1.02rem;font-weight:800;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:auto;}
+  .status-pill{flex:none;font-size:.66rem;font-weight:700;height:30px;padding:0 10px;border-radius:999px;background:var(--bg-soft);border:1px solid var(--border);display:flex;align-items:center;gap:6px;white-space:nowrap;}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);}
   .dot.live{background:var(--success);animation:pulse 1.6s infinite;} .dot.warn{background:var(--warning);} .dot.err{background:var(--danger);}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5);}70%{box-shadow:0 0 0 7px rgba(16,185,129,0);}100%{box-shadow:0 0 0 0 transparent;}}
@@ -181,8 +181,10 @@
   .seg button.sel{background:var(--primary);color:#fff;}
 
   .nav{height:calc(var(--nav-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);display:flex;border-top:1px solid var(--border);background:var(--bg-card);}
-  .nav button{flex:1;background:none;color:var(--text-muted);flex-direction:column;gap:2px;font-size:.56rem;font-weight:600;border-radius:0;padding:7px 0;}
-  .nav button.sel{color:var(--primary);} .nav .ic{font-size:18px;line-height:1;}
+  .nav button{flex:1;min-width:0;background:none;color:var(--text-muted);flex-direction:column;gap:3px;font-size:.55rem;font-weight:600;border-radius:0;padding:9px 0 7px;}
+  .nav button.sel{color:var(--primary);}
+  .nav .ic{height:23px;display:flex;align-items:center;justify-content:center;}
+  .nav .ic svg{width:23px;height:23px;display:block;}
   .nav button.sel{position:relative;}
   .nav button.sel::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:24px;height:3px;border-radius:0 0 4px 4px;background:var(--primary);}
   .hint{font-size:.68rem;color:var(--text-muted);text-align:center;margin-top:9px;line-height:1.5;}
@@ -208,15 +210,15 @@
   /* Flug-Tab (Karte zuerst, FR24-Stil) */
   #page-flug.active{display:block;padding:0;overflow:hidden;}
   #flugMap{position:absolute;inset:0;width:100%;height:100%;background:#0b1220;}
-  .flug-top{position:absolute;top:8px;left:8px;right:62px;z-index:600;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+  .flug-top{position:absolute;top:10px;left:10px;right:62px;z-index:600;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
   .flug-search{display:flex;gap:6px;pointer-events:auto;}
   .flug-search input{box-shadow:0 4px 14px rgba(0,0,0,.22);}
   .flug-search button{width:auto;padding:0 16px;box-shadow:0 4px 14px rgba(0,0,0,.22);}
   .flug-chips{display:flex;gap:6px;overflow-x:auto;pointer-events:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
   .flug-chips button{flex:0 0 auto;width:auto;padding:6px 12px;font-size:.76rem;font-weight:700;border-radius:999px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.18);}
   .flug-chips button.sel{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border-color:transparent;}
-  .flug-fabs{position:absolute;right:8px;top:8px;z-index:600;display:flex;flex-direction:column;gap:8px;}
-  .flug-fab{width:44px;height:44px;border-radius:50%;padding:0;font-size:18px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;}
+  .flug-fabs{position:absolute;right:10px;top:10px;z-index:600;display:flex;flex-direction:column;gap:9px;}
+  .flug-fab{width:42px;height:42px;border-radius:50%;padding:0;font-size:17px;line-height:1;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border);box-shadow:0 3px 10px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;}
   .flug-fab.on{background:linear-gradient(135deg,var(--success),#047857);color:#fff;border-color:transparent;}
   #flugSheet{position:absolute;left:0;right:0;bottom:0;z-index:650;background:var(--bg-card);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -6px 24px rgba(0,0,0,.28);max-height:46%;display:flex;flex-direction:column;transition:transform .28s ease;}
   #flugSheet.collapsed{transform:translateY(calc(100% - 56px));}
@@ -687,18 +689,18 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.12 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.13 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
   <div class="nav" id="nav">
-    <button data-tab="dash" class="sel"><span class="ic">🏠</span>Start</button>
-    <button data-tab="map"><span class="ic">🗺️</span>Karte</button>
-    <button data-tab="nav"><span class="ic">🎯</span>Ziel</button>
-    <button data-tab="tracking"><span class="ic">📍</span>Tracking</button>
-    <button data-tab="sat"><span class="ic">🛰️</span>Sat</button>
-    <button data-tab="flug"><span class="ic">✈️</span>Flug</button>
-    <button data-tab="more"><span class="ic">⚙️</span>Mehr</button>
+    <button data-tab="dash" class="sel"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>Start</button>
+    <button data-tab="map"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg></span>Karte</button>
+    <button data-tab="nav"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>Ziel</button>
+    <button data-tab="tracking"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg></span>Tracking</button>
+    <button data-tab="sat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><path d="M8.2 8.2a5.6 5.6 0 0 0 0 7.6"/><path d="M15.8 8.2a5.6 5.6 0 0 1 0 7.6"/><path d="M5.6 5.6a9.2 9.2 0 0 0 0 12.8"/><path d="M18.4 5.6a9.2 9.2 0 0 1 0 12.8"/></svg></span>Sat</button>
+    <button data-tab="flug"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></span>Flug</button>
+    <button data-tab="more"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>Mehr</button>
   </div>
 
   <!-- QR Overlay -->
@@ -740,7 +742,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.12 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.13 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

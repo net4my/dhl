@@ -66,21 +66,19 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.12
-          name: GeoPilot v3.12
+          tag_name: v3.13
+          name: GeoPilot v3.13
           body: |
-            GeoPilot 3.12 – FR24-Karte in beiden Modi, „Zu mir" & klare Status.
+            GeoPilot 3.13 – saubere Positionierung von Icons & Menüs.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **FR24-Kartenstil auch im Hellmodus:** saubere helle CARTO-Karte statt
-              bunter OSM-Karte; im Dunkelmodus die dunkle FR24-Karte.
-            • **📍 „Zu mir"** auf der Flugkarte: zentriert auf deine Position (startet
-              bei Bedarf den Standort) und zeigt dich als Punkt – Flugzeuge um dich.
-            • **Klare Status-Meldung:** „Keine Flugzeuge im Bereich – herauszoomen" vs.
-              „Anbieter nicht erreichbar", damit man den Unterschied sieht.
-            • **Logischere Bedienung:** Knöpfe heißen jetzt „Standort & Sensoren AN /
-              Alles AUS“ (kein verwirrendes „Tracking“).
+            • **Einheitliche Tab-Icons** unten: klare Vektor-Symbole (gleiche Größe &
+              Strichstärke) statt ungleicher Emojis, sauber zentriert.
+            • **Aufgeräumte Kopfzeile:** konsistente Pillen-Höhe, kein Umbruch, Titel
+              wird sauber gekürzt – nichts mehr gedrängt.
+            • **Flug-Schnellbuttons** mit gleichmäßigen Abständen und Rand, klar von
+              Suchfeld/Filter getrennt.
+            • Suchzeile/Chips bündig ausgerichtet.
 
-            Hinweis: Live-Flugzeuge brauchen Internet + Flüge im Kartenausschnitt.
-            Für Flugzeuge um dich herum oben den Schalter bzw. „📍 Zu mir" antippen.
+            Enthält weiterhin: FR24-Look hell & dunkel, „📍 Zu mir", klare Live-Status.
           files: android/GeoPilot.apk

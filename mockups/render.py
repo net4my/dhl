@@ -97,7 +97,7 @@ def status_bar(img, d, theme, y0=0):
         bh = (i+1)*3*S
         d.rectangle((x-bx*S, 24*S-bh, x-bx*S+3*S, 24*S), fill=theme["sb_fg"])
 
-TABS = [("home","Start"),("map","Karte"),("nav","Ziel"),("plane","Flug"),("more","Mehr")]
+TABS = [("home","Start"),("map","Karte"),("nav","Ziel"),("pin","Tracking"),("sat","Sat"),("plane","Flug"),("more","Mehr")]
 def draw_icon(d, kind, cx, cy, col, sz):
     s = sz*S; r = s/2
     if kind=="home":
@@ -113,10 +113,17 @@ def draw_icon(d, kind, cx, cy, col, sz):
     elif kind=="plane":
         im = plane_img(int(s), col); d.bitmap((int(cx-s/2),int(cy-s/2)), im.convert("1"), fill=col) if False else None
         base = d._image if hasattr(d,'_image') else None
+    elif kind=="pin":
+        d.ellipse((cx-r*0.7,cy-r,cx+r*0.7,cy+r*0.4), outline=col, width=2*S)
+        d.line([(cx-r*0.55,cy+r*0.1),(cx,cy+r),(cx+r*0.55,cy+r*0.1)], fill=col, width=2*S, joint="curve")
+        d.ellipse((cx-r*0.25,cy-r*0.45,cx+r*0.25,cy+r*0.05), fill=col)
+    elif kind=="sat":
+        d.ellipse((cx-2*S,cy-2*S,cx+2*S,cy+2*S), fill=col)
+        for rr in (r*0.55,r):
+            d.arc((cx-rr,cy-rr,cx+rr,cy+rr), 200, 340, fill=col, width=2*S)
     elif kind=="more":
-        d.ellipse((cx-r,cy-r,cx+r,cy+r), outline=col, width=2*S)
-        for dx in (-r*0.4,0,r*0.4):
-            d.ellipse((cx+dx-1.5*S,cy-1.5*S,cx+dx+1.5*S,cy+1.5*S), fill=col)
+        for dx in (-r*0.55,0,r*0.55):
+            d.ellipse((cx+dx-2*S,cy-2*S,cx+dx+2*S,cy+2*S), fill=col)
 
 def tab_bar(img, d, theme, active="plane"):
     th = 70*S; y0 = H-th
