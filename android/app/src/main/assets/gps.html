@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <title>GeoPilot</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#f4f6fb" />
+<meta name="theme-color" content="#eef2f8" />
 <script>try{var b=localStorage.getItem('gg_basetheme'),n=localStorage.getItem('gg_night')==='1',m=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;if(!b){var o=localStorage.getItem('gg_theme');b=(o==='dark'||o==='light')?o:'auto';}var t=n?'night':(b==='auto'?(m?'dark':'light'):b);document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <link rel="stylesheet" href="leaflet/leaflet.css" />
 <script src="leaflet/leaflet.js"></script>
@@ -12,16 +12,18 @@
 <style>
   :root{
     color-scheme:light dark;
-    --primary:#2563eb; --secondary:#6366f1; --success:#16a34a;
+    /* Hell = "Tag" (Referenz-Mockup C) */
+    --primary:#2563eb; --secondary:#3b82f6; --success:#16a34a;
     --warning:#f59e0b; --danger:#ef4444;
-    --bg-body:#f5f7fb; --bg-card:#ffffff; --bg-soft:#eef2f8;
-    --text-main:#0b1220; --text-muted:#5b6b85; --border:#e6eaf2;
+    --bg-body:#eef2f8; --bg-card:#ffffff; --bg-soft:#f5f8fc;
+    --text-main:#0b1220; --text-muted:#64748b; --border:#e2e8f0;
     --shadow:0 1px 2px rgba(16,24,40,.04), 0 6px 16px rgba(16,24,40,.06);
     --radius:18px; --nav-h:64px;
   }
-  [data-theme="dark"]{--primary:#3b82f6;--secondary:#818cf8;--success:#22c55e;
-    --bg-body:#0b1220;--bg-card:#131c2e;--bg-soft:#0e1626;--text-main:#f1f5f9;--text-muted:#94a3b8;--border:#243047;
-    --shadow:0 1px 2px rgba(0,0,0,.3);}
+  /* Dunkel = "FR24 Classic" (Referenz-Mockup A) */
+  [data-theme="dark"]{--primary:#f5a623;--secondary:#f7b733;--success:#34d399;--warning:#f59e0b;--danger:#ef4444;
+    --bg-body:#0b1b2b;--bg-card:#0e1c2b;--bg-soft:#16283a;--text-main:#eef4fb;--text-muted:#8aa1b8;--border:#27405a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);}
   [data-theme="night"]{--primary:#ff453a;--secondary:#ff453a;--success:#ff6b35;--warning:#ff453a;--danger:#ff453a;
     --bg-body:#000;--bg-card:#140000;--bg-soft:#0a0000;--text-main:#ff5a4d;--text-muted:#a30000;--border:#360000;--shadow:none;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -129,7 +131,7 @@
   button{font-family:inherit;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:.88rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .08s;}
   button:active{transform:scale(.97);}
   .b-primary{background:linear-gradient(135deg,var(--primary),var(--secondary));}
-  .b-soft{background:#334155;} [data-theme="light"] .b-soft{background:#64748b;} [data-theme="night"] .b-soft{background:#3a0000;}
+  .b-soft{background:#64748b;} [data-theme="dark"] .b-soft{background:#1f3550;} [data-theme="night"] .b-soft{background:#3a0000;}
   .b-danger{background:linear-gradient(135deg,var(--danger),#b91c1c);}
   .b-success{background:linear-gradient(135deg,var(--success),#047857);}
   .b-warn{background:linear-gradient(135deg,var(--warning),#b45309);}
@@ -222,6 +224,20 @@
   .sheet-handle span{width:42px;height:5px;border-radius:999px;background:var(--border);}
   .sheet-head{padding:4px 14px 8px;cursor:pointer;}
   .sheet-body{overflow-y:auto;padding:0 12px 14px;}
+  /* FR24-Flugkarten in der Liste */
+  .flight-card{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--bg-soft);margin-top:9px;cursor:pointer;}
+  .flight-card.sel{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset;}
+  .flight-card.emerg{border-color:var(--danger);}
+  .fc-ic{flex:0 0 26px;width:26px;height:26px;position:relative;}
+  .fc-main{flex:1;min-width:0;}
+  .fc-top{display:flex;align-items:center;gap:7px;}
+  .fc-cs{font-weight:800;font-size:1rem;letter-spacing:.3px;}
+  .fc-reg{font-size:.7rem;color:var(--text-muted);font-weight:600;}
+  .fc-route{font-size:.74rem;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fc-alt{flex:0 0 auto;text-align:right;}
+  .fc-alt .a{font-weight:800;font-size:.9rem;font-variant-numeric:tabular-nums;}
+  .fc-alt .u{font-size:.62rem;color:var(--text-muted);font-weight:700;}
+  .fc-chev{flex:0 0 auto;color:var(--text-muted);font-size:1.1rem;}
   /* Karten-Labels für Flugzeuge */
   .plane-wrap{position:relative;}
   .plane-lbl{position:absolute;left:16px;top:-2px;white-space:nowrap;font-size:9px;font-weight:800;line-height:1.05;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;pointer-events:none;}
@@ -670,7 +686,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.10 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.11 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -723,7 +739,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.10 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.11 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

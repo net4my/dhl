@@ -342,12 +342,26 @@
     if (mapStyle === "terrain") return L.tileLayer(TILE_TOPO, { maxZoom: 17 });
     return new OfflineLayer(TILE_URL, { maxZoom: 19 });
   }
-  function swapBase(m, old) { if (!m) return null; if (old) m.removeLayer(old); var nl = makeBaseLayer(); nl.addTo(m); if (nl.bringToBack) nl.bringToBack(); return nl; }
+  // FR24-Stil: dunkle Karte im Dark-Theme (online), hell offline-fähig
+  function makeFlugBase() {
+    if (mapStyle === "satellite") return L.tileLayer(TILE_SAT, { maxZoom: 19 });
+    if (mapStyle === "terrain") return L.tileLayer(TILE_TOPO, { maxZoom: 17 });
+    var t = document.documentElement.getAttribute("data-theme");
+    if (t === "dark" || t === "night") return L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", { maxZoom: 20, subdomains: "abcd" });
+    return new OfflineLayer(TILE_URL, { maxZoom: 19 });
+  }
+  function swapBase(m, old, factory) { if (!m) return null; if (old) m.removeLayer(old); var nl = (factory || makeBaseLayer)(); nl.addTo(m); if (nl.bringToBack) nl.bringToBack(); return nl; }
+  function refreshBases() {
+    mapBaseLayer = swapBase(map, mapBaseLayer);
+    trackBaseLayer = swapBase(trackMap, trackBaseLayer);
+    flugBaseLayer = swapBase(flugMap, flugBaseLayer, makeFlugBase);
+    compassBaseLayer = swapBase(compassMap, compassBaseLayer);
+  }
   function setMapStyle(s) {
     mapStyle = s; LS.setItem("gg_mapstyle", s);
     mapBaseLayer = swapBase(map, mapBaseLayer);
     trackBaseLayer = swapBase(trackMap, trackBaseLayer);
-    flugBaseLayer = swapBase(flugMap, flugBaseLayer);
+    flugBaseLayer = swapBase(flugMap, flugBaseLayer, makeFlugBase);
     compassBaseLayer = swapBase(compassMap, compassBaseLayer);
     var names = { standard: "Standard", satellite: "Satellit", terrain: "Gelände" };
     toast("Karte: " + names[s]);
@@ -1042,7 +1056,7 @@
     if (flugMap || typeof L === "undefined") { if (flugMap) setTimeout(function () { flugMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
     flugMap = L.map("flugMap", { zoomControl: false, attributionControl: false }).setView(c, lastFix ? 9 : 5);
-    flugBaseLayer = makeBaseLayer(); flugBaseLayer.addTo(flugMap);
+    flugBaseLayer = makeFlugBase(); flugBaseLayer.addTo(flugMap);
     flugLayer = L.layerGroup().addTo(flugMap);
     flugMarkers = {};
     flugMap.on("moveend", function () { if (flugVisible) { loadFlights(); if (airportsOn) { if (airportTimer) clearTimeout(airportTimer); airportTimer = setTimeout(loadAirports, 600); } } });
@@ -1156,11 +1170,19 @@
     if (!planes.length) { list.innerHTML = '<div class="hint">Keine Flüge (Filter/Bereich prüfen).</div>'; return; }
     list.innerHTML = "";
     planes.slice(0, 60).forEach(function (p) {
-      var emerg = isEmergency(p.squawk), route = routeCache[(p.flight || "").trim()];
-      var row = document.createElement("div"); row.className = "wp-item"; row.style.cursor = "pointer";
-      if (emerg) row.style.borderColor = "var(--danger)"; if (followFlugHex === p.hex) row.style.borderColor = "var(--primary)";
-      var routeTxt = (route && route.from) ? (route.from + " → " + route.to) : "";
-      row.innerHTML = '<div style="flex:1"><div class="nm">✈ ' + escapeHtml(p.flight) + (p.reg ? ' <span style="color:var(--text-muted);font-weight:400">' + escapeHtml(p.reg) + '</span>' : "") + (emerg ? ' <span style="color:var(--danger)">⚠</span>' : "") + '</div><div class="co">' + (routeTxt ? escapeHtml(routeTxt) + " · " : "") + (p.alt != null ? p.alt.toLocaleString("de-DE") + " ft" : "–") + " · " + (p.gsKmh != null ? p.gsKmh + " km/h" : "–") + (p.distKm != null ? " · " + p.distKm.toFixed(0) + " km" : "") + '</div></div><div style="color:var(--text-muted)">›</div>';
+      var emerg = isEmergency(p.squawk), route = routeCache[(p.flight || "").trim()], col = altColor(p.alt, emerg);
+      var row = document.createElement("div"); row.className = "flight-card" + (emerg ? " emerg" : "") + (followFlugHex === p.hex ? " sel" : "");
+      var routeTxt = (route && route.from) ? (escapeHtml(route.from) + " → " + escapeHtml(route.to)) : "Route –";
+      var meta = (p.gsKmh != null ? p.gsKmh + " km/h" : "–") + (p.distKm != null ? " · " + p.distKm.toFixed(0) + " km" : "");
+      var svg = '<svg width="26" height="26" viewBox="0 0 24 24" style="transform:rotate(' + (p.trk || 0) + 'deg)"><path fill="' + col + '" d="M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>';
+      row.innerHTML =
+        '<div class="fc-ic">' + svg + '</div>' +
+        '<div class="fc-main"><div class="fc-top"><span class="fc-cs">' + escapeHtml(p.flight) + '</span>' +
+        (p.reg ? '<span class="fc-reg">' + escapeHtml(p.reg) + '</span>' : "") +
+        (emerg ? '<span style="color:var(--danger);font-weight:800">⚠</span>' : "") + '</div>' +
+        '<div class="fc-route">' + routeTxt + " · " + meta + '</div></div>' +
+        '<div class="fc-alt"><div class="a">' + (p.alt != null ? p.alt.toLocaleString("de-DE") : "–") + '</div><div class="u">ft</div></div>' +
+        '<div class="fc-chev">›</div>';
       row.onclick = function () { openDetail(p.hex); };
       list.appendChild(row);
     });
@@ -1350,7 +1372,8 @@
     document.documentElement.setAttribute("data-theme", t);
     if ($("themeSeg")) Array.prototype.forEach.call($("themeSeg").children, function (b) { b.classList.toggle("sel", b.getAttribute("data-t") === baseTheme); });
     if ($("nightTgl")) $("nightTgl").classList.toggle("on", nightOn);
-    var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute("content", t === "night" ? "#000000" : t === "dark" ? "#0b1220" : "#f5f7fb");
+    var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute("content", t === "night" ? "#000000" : t === "dark" ? "#0b1b2b" : "#eef2f8");
+    if (typeof refreshBases === "function") refreshBases();
   }
   if ($("themeSeg")) Array.prototype.forEach.call($("themeSeg").children, function (b) { b.onclick = function () { baseTheme = b.getAttribute("data-t"); LS.setItem("gg_basetheme", baseTheme); applyTheme(); }; });
   if ($("nightTgl")) $("nightTgl").onclick = function () { nightOn = !nightOn; LS.setItem("gg_night", nightOn ? "1" : "0"); applyTheme(); };
