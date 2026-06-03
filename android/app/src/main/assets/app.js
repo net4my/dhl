@@ -473,11 +473,12 @@
     updateTrip();
   }
   $("recBtn").onclick = function () {
+    if (!recording && !appActive) { toast("Bitte zuerst oben den Schalter (GPS) einschalten."); return; }
     recording = !recording; var b = $("recBtn");
     if (recording) {
       if (track.length === 0) { trackDist = 0; trackStart = Date.now(); maxSpeed = 0; if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]); }
       b.textContent = "⏸ Pause"; b.className = "b-warn"; recTimer = setInterval(refreshTrackStats, 1000);
-      $("tkState").textContent = "● Aufzeichnung läuft"; startTracking();
+      $("tkState").textContent = "● Aufzeichnung läuft";
     } else { b.textContent = "⏺ Start"; b.className = "b-success"; if (recTimer) { clearInterval(recTimer); recTimer = null; } $("tkState").textContent = "Pausiert"; }
   };
   $("recStopBtn").onclick = function () {
