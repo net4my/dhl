@@ -66,20 +66,23 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.18
-          name: GeoPilot v3.18
+          tag_name: v3.19
+          name: GeoPilot v3.19
           body: |
-            GeoPilot 3.18 – Android Auto leichter einrichten.
+            GeoPilot 3.19 – live & aktive Navigation + besserer Verlauf.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **„📲 Android Auto öffnen"-Knopf** (Mehr → „Android Auto einrichten"):
-              springt mit einem Tipp direkt in die Android-Auto-Einstellungen, wo
-              **„Unbekannte Quellen"** sitzt – inklusive Hinweis, welcher Schalter
-              gebraucht wird. Damit erscheint GeoPilot (seitlich installiert) im Auto.
-            • Klarere Schritt-für-Schritt-Anleitung im selben Bereich.
+            **Navigation fühlt sich jetzt „live" an:**
+            • **Drehender Richtungspfeil** statt blauem Punkt – zeigt deine Fahrtrichtung.
+            • **Karte fährt automatisch mit** und zoomt vor Abzweigungen näher heran;
+              wenn du die Karte verschiebst, folgt sie nach kurzer Pause von allein wieder.
+            • **Live-Sprachansagen:** früher bei höherem Tempo, plus eine „Jetzt"-Ansage
+              direkt an der Abzweigung; ETA/Restzeit aktualisieren sich laufend.
+            • **Schnellere automatische Neuberechnung**, wenn du von der Route abkommst.
 
-            Hinweis: Android Auto zeigt Navi-Apps **nur am Auto-Display** (oder im
-            „Desktop Head Unit"), nie auf dem Handy allein – das ist eine Vorgabe von
-            Google, kein Fehler der App. Zum Navigieren **am Handy** einfach
-            Tab „Ziel" → ▶︎ Losfahren (oder 🧪 Demo).
+            **Verlauf klarer & nützlicher:**
+            • **Ziel-Verlauf** (zuletzt navigiert): mehr Einträge, Zeitangabe
+              („vor 2 Std"), einzeln entfernbar, ein Tipp navigiert erneut dorthin.
+            • **Aufgezeichnete Touren** lassen sich jetzt **als GPX exportieren** (📥),
+              ansehen (👁) und löschen.
           files: android/GeoPilot.apk

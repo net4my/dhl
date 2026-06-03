@@ -387,7 +387,13 @@
     map = L.map("map", { zoomControl: true, attributionControl: false }).setView([51.1657, 10.4515], 5);
     mapBaseLayer = makeBaseLayer(); mapBaseLayer.addTo(map);
     trackLine = L.polyline([], { color: "#0ea5e9", weight: 5, opacity: .85 }).addTo(map);
-    map.on("dragstart", function () { followMe = false; });
+    var followResumeTimer = null;
+    map.on("dragstart", function () {
+      followMe = false;
+      if (followResumeTimer) { clearTimeout(followResumeTimer); followResumeTimer = null; }
+      // Während der Navigation nach kurzer Pause automatisch wieder mitfahren.
+      if (navActive) followResumeTimer = setTimeout(function () { followMe = true; if (lastFix) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16)); }, 12000);
+    });
     map.on("click", function (e) { pickPlace(e.latlng.lat, e.latlng.lng, null); if (!stopMode) toast("Ziel auf Karte gesetzt."); });
     map.on("contextmenu", function (e) {
       var name = prompt("Name des Wegpunkts:", "Wegpunkt " + (loadWps().length + 1)); if (name == null) return;
@@ -397,11 +403,23 @@
     refreshTileCount();
     setTimeout(function () { map.invalidateSize(); }, 60);
   }
+  // Fahrtrichtung für den Positionspfeil: bei Bewegung GPS-Kurs, sonst Kompass.
+  function navHeading(p) {
+    if (p && p.bearing != null && !isNaN(p.bearing) && (p.speed == null || p.speed > 0.7)) return p.bearing;
+    if (typeof smooth !== "undefined" && smooth != null && !isNaN(smooth)) return smooth;
+    return (p && p.bearing != null && !isNaN(p.bearing)) ? p.bearing : 0;
+  }
+  function meIconHtml(deg) {
+    return '<div class="me-chev" style="transform:rotate(' + (deg || 0) + 'deg);transition:transform .2s linear"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 2 L19 21 L12 16.5 L5 21 Z" fill="#0ea5e9" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>';
+  }
   function onMapLocation(p) {
-    if (!map) return; var ll = [p.lat, p.lon];
-    if (!meMarker) { meMarker = L.circleMarker(ll, { radius: 8, color: "#fff", weight: 2, fillColor: "#0ea5e9", fillOpacity: 1 }).addTo(map); accCircle = L.circle(ll, { radius: p.acc || 0, color: "#0ea5e9", weight: 1, fillOpacity: .08 }).addTo(map); }
-    else { meMarker.setLatLng(ll); accCircle.setLatLng(ll).setRadius(p.acc || 0); }
-    if (followMe) map.setView(ll, Math.max(map.getZoom(), 16));
+    if (!map) return; var ll = [p.lat, p.lon]; var hd = navHeading(p);
+    if (!meMarker) { meMarker = L.marker(ll, { icon: L.divIcon({ className: "", html: meIconHtml(hd), iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(map); accCircle = L.circle(ll, { radius: p.acc || 0, color: "#0ea5e9", weight: 1, fillOpacity: .08 }).addTo(map); }
+    else { meMarker.setLatLng(ll); accCircle.setLatLng(ll).setRadius(p.acc || 0); var ch = meMarker._icon && meMarker._icon.querySelector(".me-chev"); if (ch) ch.style.transform = "rotate(" + hd + "deg)"; }
+    // Beim aktiven Navigieren näher heranzoomen, kurz vor einer Abzweigung extra.
+    var minZ = 16;
+    if (navActive && routeSteps[routeStepIdx] && lastFix) { var dman = haversine(p.lat, p.lon, routeSteps[routeStepIdx].loc[0], routeSteps[routeStepIdx].loc[1]); if (dman < 220) minZ = 17; }
+    if (followMe) map.setView(ll, Math.max(map.getZoom(), minZ));
   }
   $("centerBtn").onclick = function () { followMe = true; if (map && lastFix) map.setView([lastFix.lat, lastFix.lon], 17); };
   ["layerBtn", "layerBtn2", "layerBtn3"].forEach(function (id) { var b = $(id); if (b) b.onclick = cycleMapStyle; });
@@ -735,9 +753,15 @@
       tours.forEach(function (tr) {
         var d = fmtDist(tr.dist), row = document.createElement("div"); row.className = "wp-item";
         row.innerHTML = '<div style="flex:1"><div class="nm">' + escapeHtml(tr.name) + '</div><div class="co">' + new Date(tr.date).toLocaleDateString("de-DE") + " · " + d.v + " " + d.u + " · ⬆" + fmtAlt(tr.up) + "</div></div>";
-        var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "👁"; go.onclick = function () { viewTour(tr); };
-        var del = document.createElement("button"); del.className = "b-soft"; del.textContent = "🗑"; del.onclick = function () { idbDel("tours", tr.id).then(renderTours); };
-        row.appendChild(go); row.appendChild(del); c.appendChild(row);
+        var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "👁"; go.title = "Auf Karte ansehen"; go.onclick = function () { viewTour(tr); };
+        var exp = document.createElement("button"); exp.className = "b-soft"; exp.textContent = "📥"; exp.title = "Als GPX exportieren";
+        exp.onclick = function () {
+          var gpx = buildGpx(tr.pts, tr.name), fn = (tr.name || "tour").replace(/[^\w\-]+/g, "_") + ".gpx";
+          if (hasNative()) { try { window.Android.saveText(fn, "application/gpx+xml", gpx); return; } catch (e) {} }
+          var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([gpx], { type: "application/gpx+xml" })); a.download = fn; a.click(); toast("GPX exportiert.");
+        };
+        var del = document.createElement("button"); del.className = "b-soft"; del.textContent = "🗑"; del.title = "Löschen"; del.onclick = function () { if (window.confirm("Tour „" + tr.name + "“ löschen?")) idbDel("tours", tr.id).then(renderTours); };
+        row.appendChild(go); row.appendChild(exp); row.appendChild(del); c.appendChild(row);
       });
     });
   }
@@ -846,22 +870,27 @@
   refreshFavButtons();
 
   function loadRecents() { try { return JSON.parse(LS.getItem("gg_recents") || "[]"); } catch (e) { return []; } }
+  function relTime(t) { if (!t) return ""; var s = Math.floor((Date.now() - t) / 1000); if (s < 60) return "gerade eben"; var m = Math.floor(s / 60); if (m < 60) return "vor " + m + " Min"; var h = Math.floor(m / 60); if (h < 24) return "vor " + h + " Std"; var d = Math.floor(h / 24); return d < 7 ? "vor " + d + " Tg" : new Date(t).toLocaleDateString("de-DE"); }
   function addRecent(lat, lon, name) {
     if (lat == null || lon == null || isNaN(lat) || isNaN(lon)) return;
     var r = loadRecents().filter(function (x) { return haversine(x.lat, x.lon, lat, lon) > 40; });
     r.unshift({ lat: lat, lon: lon, name: name || (lat.toFixed(4) + ", " + lon.toFixed(4)), t: Date.now() });
-    if (r.length > 8) r = r.slice(0, 8);
+    if (r.length > 12) r = r.slice(0, 12);
     LS.setItem("gg_recents", JSON.stringify(r)); renderRecents();
   }
   function renderRecents() {
     var c = $("recentList"); if (!c) return; var r = loadRecents();
-    if (!r.length) { c.innerHTML = '<div class="hint" style="text-align:left">Zuletzt gesuchte Ziele erscheinen hier.</div>'; return; }
+    if (!r.length) { c.innerHTML = '<div class="hint" style="text-align:left">Zuletzt gesuchte Ziele erscheinen hier – tippe eines an, um sofort wieder dorthin zu navigieren.</div>'; return; }
     c.innerHTML = "";
     r.forEach(function (x) {
       var row = document.createElement("div"); row.className = "place-item";
       var dd = lastFix ? fmtDist(haversine(lastFix.lat, lastFix.lon, x.lat, x.lon)) : null;
-      row.innerHTML = '<div class="pi-ico">🕘</div><div class="pi-main"><div class="pi-name">' + escapeHtml(x.name) + '</div><div class="pi-sub">' + x.lat.toFixed(4) + ", " + x.lon.toFixed(4) + '</div></div>' + (dd ? '<div class="pi-dist">' + dd.v + " " + dd.u + '</div>' : "");
+      var sub = (x.t ? relTime(x.t) + " · " : "") + x.lat.toFixed(4) + ", " + x.lon.toFixed(4);
+      row.innerHTML = '<div class="pi-ico">🕘</div><div class="pi-main"><div class="pi-name">' + escapeHtml(x.name) + '</div><div class="pi-sub">' + sub + '</div></div>' + (dd ? '<div class="pi-dist">' + dd.v + " " + dd.u + '</div>' : "");
       row.onclick = function () { goTo(x.lat, x.lon, x.name); };
+      var del = document.createElement("button"); del.className = "b-soft"; del.style.cssText = "flex:0 0 auto;width:34px;padding:6px;margin-left:6px"; del.textContent = "✕"; del.title = "Aus Verlauf entfernen";
+      del.onclick = function (ev) { ev.stopPropagation(); var arr = loadRecents().filter(function (y) { return !(y.lat === x.lat && y.lon === x.lon); }); LS.setItem("gg_recents", JSON.stringify(arr)); renderRecents(); };
+      row.appendChild(del);
       c.appendChild(row);
     });
   }
@@ -1118,10 +1147,14 @@
       var spdTxt = (lastFix.speed != null && !isNaN(lastFix.speed)) ? " · " + fmtSpeed(lastFix.speed) + " " + (isImp() ? "mph" : "km/h") : "";
       $("nbEta").textContent = "Ankunft ~" + arr.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " · noch " + ed.v + " " + ed.u + " · " + fmtDur(eta.time) + spdTxt;
       if (map && followMe) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 16));
-      if (routeShape.length && distToRoute(lastFix.lat, lastFix.lon) > 60 && Date.now() - lastReroute > 8000) { lastReroute = Date.now(); toast("Route wird neu berechnet…"); if (voiceOn) speak("Route wird neu berechnet."); calcRoute(); return; }
+      if (routeShape.length && distToRoute(lastFix.lat, lastFix.lon) > 45 && Date.now() - lastReroute > 6000) { lastReroute = Date.now(); toast("Route wird neu berechnet…"); if (voiceOn) speak("Route wird neu berechnet."); calcRoute(); return; }
     }
+    // Ansage-Distanz an die Geschwindigkeit anpassen: schneller = früher ansagen.
+    var spd = (lastFix.speed != null && !isNaN(lastFix.speed)) ? lastFix.speed : 0;
+    var farD = Math.max(150, Math.min(400, spd * 8));
     if (dToMan < 30 && routeStepIdx < routeSteps.length - 1) { routeStepIdx++; renderSteps(); var ns = routeSteps[routeStepIdx]; if (voiceOn && ns) speak(ns.instr); }
-    else if (voiceOn && dToMan < 180 && !s._ann) { s._ann = true; var d2 = fmtDist(dToMan); speak("In " + d2.v + " " + (d2.u === "km" ? "Kilometern" : "Metern") + ": " + s.instr); }
+    else if (voiceOn && dToMan < 45 && !s._annNear) { s._annNear = true; speak("Jetzt: " + s.instr); }
+    else if (voiceOn && dToMan < farD && !s._ann) { s._ann = true; var d2 = fmtDist(dToMan); speak("In " + d2.v + " " + (d2.u === "km" ? "Kilometern" : "Metern") + ": " + s.instr); }
   }
   function startNav() { if (!routeSteps.length) { pendingNavStart = true; calcRoute(); return; } navActive = true; arrived = false; followMe = true; $("navBanner").classList.add("show"); $("navStartBtn").textContent = "⏹ Navigation läuft"; switchTab("map"); if (voiceOn) speak("Navigation gestartet."); routeProgress(); }
   function stopNav() { navActive = false; $("navBanner").classList.remove("show"); $("navStartBtn").textContent = "▶︎ Losfahren"; }
@@ -1132,7 +1165,7 @@
     if (!routeShape || routeShape.length < 2) { toast("Erst eine Route berechnen."); return; }
     stopSim(true);
     simActive = true; navActive = true; arrived = false; followMe = true;
-    simIdx = 0; routeStepIdx = 0; routeSteps.forEach(function (s) { s._ann = false; });
+    simIdx = 0; routeStepIdx = 0; routeSteps.forEach(function (s) { s._ann = false; s._annNear = false; });
     $("navBanner").classList.add("show"); ensureMap(); switchTab("map");
     if ($("simBtn")) { $("simBtn").textContent = "⏹ Demo stoppen"; $("simBtn").className = "b-danger full-btn"; }
     if (voiceOn) speak("Demo-Navigation gestartet.");
