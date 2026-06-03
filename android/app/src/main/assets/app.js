@@ -252,8 +252,18 @@
       DeviceOrientationEvent.requestPermission().then(function (s) { if (s === "granted") window.addEventListener("deviceorientation", handler, true); }).catch(function () {});
     } else { window.addEventListener("deviceorientationabsolute", handler, true); window.addEventListener("deviceorientation", handler, true); }
   }
-  function startTracking() { if (hasNative()) { try { window.Android.startLocation(); } catch (e) {} setStatus("warn", "Suche Signal…"); } else startWeb(); }
-  function stopTracking() { if (hasNative()) { try { window.Android.stopLocation(); } catch (e) {} } if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; } setStatus("", "Gestoppt"); }
+  var appActive = false;
+  function startTracking() { appActive = true; if (hasNative()) { try { window.Android.startLocation(); } catch (e) {} setStatus("warn", "Suche Signal…"); } else startWeb(); }
+  function stopTracking() {
+    appActive = false;
+    if (hasNative()) { try { window.Android.stopLocation(); } catch (e) {} }
+    if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    // Alles, was Strom zieht, beenden:
+    if (typeof recording !== "undefined" && recording) { recording = false; if (recTimer) { clearInterval(recTimer); recTimer = null; } if ($("recBtn")) { $("recBtn").textContent = "⏺ Start"; $("recBtn").className = "b-success"; } if ($("tkState")) $("tkState").textContent = "Gestoppt"; }
+    if (typeof pauseFlug === "function") pauseFlug();
+    setStatus("", "Aus");
+  }
+  if ($("masterBtn")) $("masterBtn").onclick = function () { if (appActive) stopTracking(); else startTracking(); };
 
   $("startBtn").onclick = startTracking;
   $("stopBtn").onclick = stopTracking;
@@ -1274,7 +1284,8 @@
 
   // ===== Onboarding-Tour =====
   var tourSteps = [
-    { i: "🛰️", t: "Willkommen bei GeoPilot", x: "Dein All-in-One-Begleiter für GPS, Kompass, Navigation, Tracking und Live-Flugradar – das Meiste funktioniert auch offline." },
+    { i: "🛰️", t: "Willkommen bei GeoPilot", x: "Dein All-in-One-Begleiter für GPS, Kompass, Navigation, Tracking und Live-Flugradar – das Meiste funktioniert auch offline. Energiesparend: standardmäßig ist alles AUS." },
+    { i: "🔋", t: "An/Aus spart Strom", x: "Oben rechts ist der Schalter (Aus/Aktiv) bzw. ▶︎ Start. GPS & Sensoren laufen nur, wenn du sie startest – und stoppen automatisch, sobald du die App verlässt. So frisst nichts unbemerkt Akku." },
     { i: "🧭", t: "Dashboard", x: "Kompass mit Live-Karte und Richtungspfeil, dazu Tempo, Höhe, Kurs und Genauigkeit auf einen Blick. Tippe auf eine Überschrift, um Details (Koordinaten, Himmel, Wetter) zu öffnen." },
     { i: "🗺️", t: "Karte", x: "Deine Live-Position auf der Karte. Du kannst Kartenausschnitte herunterladen, um sie offline zu nutzen." },
     { i: "🎯", t: "Ziel & Navigation", x: "Adresse suchen oder auf die Karte tippen, Modus wählen (🚗 Auto · 🚶 Fuß · 🚴 Rad) und losnavigieren – mit Sprachansagen, Alternativen und Ankunftszeit." },
@@ -1358,5 +1369,5 @@
 
   // ================= Start =================
   setTimeout(ensureCompassMap, 400);
-  setStatus("", "Bereit – Tippe ▶︎ Start");
+  setStatus("", "Aus");
 })();

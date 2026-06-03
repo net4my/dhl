@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
     private var lastHeadingSent = 0L
     private var pendingStart = false
     private var tracking = false
+    private var backgroundWanted = false
     private var tts: TextToSpeech? = null
     private val io: ExecutorService = Executors.newCachedThreadPool()
     private var locationIntervalMs = 1000L
@@ -149,6 +150,7 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
         @JavascriptInterface
         fun setBackground(on: Boolean) = runOnUiThread {
+            backgroundWanted = on
             if (on) {
                 if (Build.VERSION.SDK_INT >= 33 &&
                     ContextCompat.checkSelfPermission(this@MainActivity, "android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED
@@ -386,7 +388,13 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
 
     override fun onPause() {
         super.onPause()
-        sensorManager.unregisterListener(this)
+        // Im Hintergrund alles abschalten (kein Stromfresser) – außer der Nutzer
+        // hat ausdrücklich Hintergrund-Tracking aktiviert (eigener Foreground-Dienst).
+        if (backgroundWanted) {
+            sensorManager.unregisterListener(this)
+        } else {
+            stopUpdates()
+        }
         batteryReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
         batteryReceiver = null
     }

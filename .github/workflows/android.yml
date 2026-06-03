@@ -66,16 +66,16 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.0
-          name: GeoPilot v3.0
+          tag_name: v3.1
+          name: GeoPilot v3.1
           body: |
-            GeoPilot 3.0 – großes Funktions-Update.
+            GeoPilot 3.1 – saubere An/Aus-Logik & Energie.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            **Flugradar**: Filter nach Steig-/Sinkflug, Höhe & Notfällen, Suche auch nach
-            Flugzeugtyp, und ein **Flughäfen-Layer** (🛫).
-            **Navigation**: **Zwischenstopps** (mehrere Ziele) und **Vermeidungen**
-            (Autobahn/Maut meiden).
-            **Tracking**: **Auto-Pause** bei Stillstand, **Rundenzeiten** und **Tour als
-            Bild teilen** (Karte + Statistiken).
+            • **Standardmäßig alles AUS** – nichts läuft ungewollt mit.
+            • **Master-Schalter** oben rechts (Aus/Aktiv) bzw. ▶︎ Start: GPS, Sensoren &
+              Aufzeichnung starten nur auf Wunsch.
+            • **Wichtig fürs Akku**: Sobald die App in den Hintergrund geht, **stoppt GPS
+              automatisch** (außer Hintergrund-Tracking ist bewusst aktiviert). „Stopp"
+              beendet jetzt wirklich alles (Standort, Sensoren, Aufzeichnung, Flugradar).
           files: android/GeoPilot.apk
