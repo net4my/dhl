@@ -384,8 +384,17 @@
           <button id="navStartBtn" class="b-success">▶︎ Navigation starten</button>
           <button id="routeClearBtn" class="b-soft full-btn">✖ Route löschen</button>
         </div>
+        <div class="switch" style="margin-top:8px"><div><div class="t">🛣 Autobahn meiden</div></div><div class="toggle" id="avoidHwTgl"></div></div>
+        <div class="switch"><div><div class="t">💶 Maut meiden</div></div><div class="toggle" id="avoidTollTgl"></div></div>
         <div id="routeOpts" style="display:flex;gap:8px;margin-top:10px"></div>
         <div id="steps" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Zwischenstopps</div>
+        <div class="switch" style="margin-top:0"><div><div class="t">➕ Nächste Auswahl = Stopp</div><div class="d">Adresse/Tippen/Wegpunkt wird Zwischenstopp statt Ziel</div></div><div class="toggle" id="stopModeTgl"></div></div>
+        <div id="stopsList" style="margin-top:8px"><div class="hint" style="text-align:left">Keine Zwischenstopps. Route führt direkt zum Ziel.</div></div>
+        <button id="stopsClear" class="b-soft full-btn" style="margin-top:8px">✖ Stopps löschen</button>
       </div>
 
       <div class="card">
@@ -448,10 +457,17 @@
           <div class="seg" id="profMode" style="margin-bottom:8px"><button data-pm="alt" class="sel">⛰️ Höhe</button><button data-pm="speed">🚀 Tempo</button></div>
           <canvas class="profile" id="profile" width="600" height="130"></canvas>
         </div>
+        <div class="card">
+          <div class="section-title">Runden &amp; Auto-Pause</div>
+          <div class="switch" style="margin-top:0"><div><div class="t">⏸ Auto-Pause</div><div class="d">Pausiert die Aufzeichnung bei Stillstand</div></div><div class="toggle" id="autoPauseTgl"></div></div>
+          <button id="lapBtn" class="b-primary full-btn" style="margin-top:8px">🏁 Runde markieren</button>
+          <div id="lapsList" style="margin-top:8px"><div class="hint" style="text-align:left">Noch keine Runden.</div></div>
+        </div>
         <div class="btn-row">
           <button id="saveTourBtn" class="b-primary">💾 Tour speichern</button>
           <button id="exportBtn" class="b-warn">⬇ GPX export</button>
         </div>
+        <button id="shareTourBtn" class="b-success full-btn" style="margin-top:9px">📤 Tour als Bild teilen</button>
         <button id="importBtn" class="b-soft full-btn" style="margin-top:9px">📂 GPX importieren</button>
         <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
         <div class="card" style="margin-top:12px">
@@ -487,14 +503,17 @@
     <div class="page" id="page-flug">
       <div id="flugMap"></div>
       <button id="layerBtn3" class="b-soft" style="position:absolute;top:8px;right:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛰️ Ebene</button>
+      <button id="airportBtn" class="b-soft" style="position:absolute;top:8px;left:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛫 Flughäfen</button>
       <div id="flugListWrap">
         <div class="section-title" style="margin-top:2px">✈ Flüge in der Nähe <span class="src-tag" id="flugCount">–</span></div>
-        <input type="text" id="flugSearch" placeholder="🔎 Rufzeichen / Kennzeichen filtern" style="margin-bottom:8px" />
-        <div class="seg" id="flugFilter" style="margin-bottom:10px">
-          <button data-f="all" class="sel">Alle</button>
-          <button data-f="high">ab 10.000 ft</button>
-          <button data-f="emerg">⚠ Notfälle</button>
-        </div>
+        <input type="text" id="flugSearch" placeholder="🔎 Rufzeichen / Kennzeichen / Typ filtern" style="margin-bottom:8px" />
+        <select id="flugFilter" style="margin-bottom:10px">
+          <option value="all">Alle Flüge</option>
+          <option value="high">ab 10.000 ft</option>
+          <option value="climb">↗ Steigflug</option>
+          <option value="descend">↘ Sinkflug</option>
+          <option value="emerg">⚠ Notfälle</option>
+        </select>
         <div class="btn-row" style="margin-bottom:10px">
           <button id="flugRefresh" class="b-primary">🔄 Aktualisieren</button>
           <button id="flugAuto" class="b-success">⏯ Auto-Refresh: an</button>
@@ -563,7 +582,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.9 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.0 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -616,7 +635,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.9 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.0 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

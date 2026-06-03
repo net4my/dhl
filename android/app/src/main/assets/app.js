@@ -359,7 +359,7 @@
     mapBaseLayer = makeBaseLayer(); mapBaseLayer.addTo(map);
     trackLine = L.polyline([], { color: "#0ea5e9", weight: 5, opacity: .85 }).addTo(map);
     map.on("dragstart", function () { followMe = false; });
-    map.on("click", function (e) { setTarget(e.latlng.lat, e.latlng.lng, null); toast("Ziel auf Karte gesetzt."); });
+    map.on("click", function (e) { pickPlace(e.latlng.lat, e.latlng.lng, null); if (!stopMode) toast("Ziel auf Karte gesetzt."); });
     map.on("contextmenu", function (e) {
       var name = prompt("Name des Wegpunkts:", "Wegpunkt " + (loadWps().length + 1)); if (name == null) return;
       var wps = loadWps(); wps.push({ lat: e.latlng.lat, lon: e.latlng.lng, name: name || ("WP " + (wps.length + 1)) }); LS.setItem("gg_wps", JSON.stringify(wps)); renderWps(); toast("Wegpunkt angelegt.");
@@ -421,9 +421,15 @@
 
   // ================= Track-Aufzeichnung =================
   var recording = false, track = [], trackDist = 0, trackStart = 0, maxSpeed = 0, recTimer = null;
+  var autoPauseOn = LS.getItem("gg_autopause") === "1", autoPaused = false;
+  var laps = [], lastLapDist = 0, lastLapTime = 0;
   function recordPoint(p) {
     if (p.speed != null && !isNaN(p.speed) && p.speed > maxSpeed) maxSpeed = p.speed;
     if (!recording) return;
+    if (autoPauseOn && p.speed != null && !isNaN(p.speed)) {
+      if (p.speed < 0.5) { if (!autoPaused) { autoPaused = true; $("tkState").textContent = "⏸ Auto-Pause"; } return; }
+      if (autoPaused) { autoPaused = false; $("tkState").textContent = "● Aufzeichnung läuft"; }
+    }
     var prev = track[track.length - 1];
     if (prev) trackDist += haversine(prev.lat, prev.lon, p.lat, p.lon);
     track.push({ lat: p.lat, lon: p.lon, alt: p.alt, t: p.time || Date.now() });
@@ -431,6 +437,23 @@
     if (trackLine2) trackLine2.addLatLng([p.lat, p.lon]);
     refreshTrackStats(); drawProfile();
   }
+  function renderLaps() {
+    var c = $("lapsList"); if (!c) return;
+    if (!laps.length) { c.innerHTML = '<div class="hint" style="text-align:left">Noch keine Runden.</div>'; return; }
+    c.innerHTML = "";
+    laps.slice().reverse().forEach(function (l) {
+      var d = fmtDist(l.dist), mm = Math.floor(l.time / 60000), ss = Math.floor((l.time % 60000) / 1000);
+      var row = document.createElement("div"); row.className = "wp-item";
+      row.innerHTML = '<div style="flex:1"><div class="nm">🏁 Runde ' + l.n + '</div><div class="co">' + d.v + " " + d.u + " · " + mm + ":" + (ss < 10 ? "0" : "") + ss + " min</div></div>";
+      c.appendChild(row);
+    });
+  }
+  if ($("autoPauseTgl")) { $("autoPauseTgl").classList.toggle("on", autoPauseOn); $("autoPauseTgl").onclick = function () { autoPauseOn = !autoPauseOn; this.classList.toggle("on", autoPauseOn); LS.setItem("gg_autopause", autoPauseOn ? "1" : "0"); }; }
+  if ($("lapBtn")) $("lapBtn").onclick = function () {
+    if (!trackStart) { toast("Erst Aufzeichnung starten."); return; }
+    var now = Date.now(); laps.push({ n: laps.length + 1, dist: trackDist - lastLapDist, time: now - (lastLapTime || trackStart) });
+    lastLapDist = trackDist; lastLapTime = now; renderLaps(); toast("🏁 Runde " + laps.length + " markiert.");
+  };
   function refreshTrackStats() {
     var d = fmtDist(trackDist); $("trkDist").textContent = d.v + " " + d.u;
     var secs = trackStart ? Math.floor((Date.now() - trackStart) / 1000) : 0, mm = Math.floor(secs / 60), ss = secs % 60;
@@ -448,13 +471,52 @@
     } else { b.textContent = "⏺ Start"; b.className = "b-success"; if (recTimer) { clearInterval(recTimer); recTimer = null; } $("tkState").textContent = "Pausiert"; }
   };
   $("recStopBtn").onclick = function () {
-    recording = false; if (recTimer) { clearInterval(recTimer); recTimer = null; }
+    recording = false; autoPaused = false; if (recTimer) { clearInterval(recTimer); recTimer = null; }
     track = []; trackDist = 0; trackStart = 0; maxSpeed = 0; profilePts = null;
+    laps = []; lastLapDist = 0; lastLapTime = 0; renderLaps();
     if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]);
     $("recBtn").textContent = "⏺ Start"; $("recBtn").className = "b-success";
     refreshTrackStats(); drawProfile(); $("tkState").textContent = "Zurückgesetzt"; toast("Aufzeichnung zurückgesetzt.");
   };
   $("centerBtn2").onclick = function () { trackFollow = true; if (trackMap && lastFix) trackMap.setView([lastFix.lat, lastFix.lon], 16); };
+  // ===== Tour als Bild =====
+  function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function buildTourImage() {
+    var pts = (profilePts && profilePts.length > 1) ? profilePts : track;
+    if (pts.length < 2) { toast("Zu wenig Trackdaten für ein Bild."); return null; }
+    var s = trackStats(pts), cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1350; var ctx = cv.getContext("2d");
+    var g = ctx.createLinearGradient(0, 0, 0, 1350); g.addColorStop(0, "#0b1220"); g.addColorStop(1, "#1e293b"); ctx.fillStyle = g; ctx.fillRect(0, 0, 1080, 1350);
+    ctx.fillStyle = "#38bdf8"; ctx.font = "bold 56px sans-serif"; ctx.fillText("🛰️ GeoPilot", 60, 110);
+    ctx.fillStyle = "#94a3b8"; ctx.font = "30px sans-serif"; ctx.fillText(new Date().toLocaleString("de-DE"), 60, 158);
+    var bx = 60, by = 200, bw = 960, bh = 640; ctx.strokeStyle = "#334155"; ctx.lineWidth = 2; rrect(ctx, bx, by, bw, bh, 24); ctx.stroke();
+    var lats = pts.map(function (p) { return p.lat; }), lons = pts.map(function (p) { return p.lon; });
+    var minLa = Math.min.apply(null, lats), maxLa = Math.max.apply(null, lats), minLo = Math.min.apply(null, lons), maxLo = Math.max.apply(null, lons);
+    var spanLa = Math.max(1e-6, maxLa - minLa), spanLo = Math.max(1e-6, maxLo - minLo), pad = 50;
+    var sc = Math.min((bw - 2 * pad) / spanLo, (bh - 2 * pad) / spanLa);
+    var ox = bx + bw / 2 - (minLo + spanLo / 2) * sc, oy = by + bh / 2 + (minLa + spanLa / 2) * sc;
+    function X(lo) { return ox + lo * sc; } function Y(la) { return oy - la * sc; }
+    ctx.beginPath(); pts.forEach(function (p, i) { var x = X(p.lon), y = Y(p.lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.strokeStyle = "#0ea5e9"; ctx.lineWidth = 7; ctx.lineJoin = "round"; ctx.stroke();
+    ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.arc(X(pts[0].lon), Y(pts[0].lat), 13, 0, 7); ctx.fill();
+    ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(X(pts[pts.length - 1].lon), Y(pts[pts.length - 1].lat), 13, 0, 7); ctx.fill();
+    var d = fmtDist(s.dist), mm = Math.floor(s.moveSec / 60), ss = Math.floor(s.moveSec % 60), u = isImp() ? " ft" : " m";
+    var stats = [["Strecke", d.v + " " + d.u], ["Bewegungszeit", mm + ":" + (ss < 10 ? "0" : "") + ss + " min"], ["⬆ Aufstieg", fmtAlt(s.up) + u], ["⬇ Abstieg", fmtAlt(s.down) + u]];
+    var sx = 60, sy = 890, sw = 465, sh = 175;
+    stats.forEach(function (st, i) { var col = i % 2, row = Math.floor(i / 2), x = sx + col * (sw + 30), y = sy + row * (sh + 25); ctx.fillStyle = "#131c2e"; rrect(ctx, x, y, sw, sh, 20); ctx.fill(); ctx.fillStyle = "#94a3b8"; ctx.font = "28px sans-serif"; ctx.fillText(st[0], x + 30, y + 52); ctx.fillStyle = "#f1f5f9"; ctx.font = "bold 54px sans-serif"; ctx.fillText(st[1], x + 30, y + 120); });
+    ctx.fillStyle = "#64748b"; ctx.font = "26px sans-serif"; ctx.fillText("Aufgezeichnet mit GeoPilot", 60, 1310);
+    return cv.toDataURL("image/png");
+  }
+  $("shareTourBtn").onclick = function () {
+    var url = buildTourImage(); if (!url) return; var txt = "Meine Tour mit GeoPilot 🛰️";
+    if (hasNative()) { try { window.Android.shareImage(url, txt); return; } catch (e) {} }
+    try {
+      fetch(url).then(function (r) { return r.blob(); }).then(function (b) {
+        var file = new File([b], "geopilot-tour.png", { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file], text: txt });
+        else { var a = document.createElement("a"); a.href = url; a.download = "geopilot-tour.png"; a.click(); }
+      });
+    } catch (e) { var a = document.createElement("a"); a.href = url; a.download = "geopilot-tour.png"; a.click(); }
+  };
   function buildGpx(pts, name) {
     var g = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GeoGuard" xmlns="http://www.topografix.com/GPX/1/1">\n<trk><name>' + (name || "GeoGuard") + '</name><trkseg>\n';
     pts.forEach(function (pt) { g += '<trkpt lat="' + pt.lat + '" lon="' + pt.lon + '">' + (pt.alt != null && !isNaN(pt.alt) ? "<ele>" + pt.alt + "</ele>" : "") + "<time>" + new Date(pt.t).toISOString() + "</time></trkpt>\n"; });
@@ -601,6 +663,22 @@
     if (hasNative()) { try { window.Android.setCarTarget(lat, lon, name || "Ziel"); } catch (e) {} }
     updateNavArrow();
   }
+  // ===== Zwischenstopps & Vermeidungen =====
+  var routeStops = []; try { routeStops = JSON.parse(LS.getItem("gg_stops") || "[]"); } catch (e) { routeStops = []; }
+  var stopMode = false, avoidHighways = LS.getItem("gg_avoidhw") === "1", avoidTolls = LS.getItem("gg_avoidtoll") === "1";
+  function pickPlace(lat, lon, name) { if (stopMode) addStop(lat, lon, name); else setTarget(lat, lon, name); }
+  function addStop(lat, lon, name) { routeStops.push({ lat: lat, lon: lon, name: name || ("Stopp " + (routeStops.length + 1)) }); LS.setItem("gg_stops", JSON.stringify(routeStops)); renderStops(); toast("Zwischenstopp hinzugefügt."); }
+  function renderStops() {
+    var c = $("stopsList"); if (!c) return;
+    if (!routeStops.length) { c.innerHTML = '<div class="hint" style="text-align:left">Keine Zwischenstopps. Route führt direkt zum Ziel.</div>'; return; }
+    c.innerHTML = "";
+    routeStops.forEach(function (s, i) {
+      var row = document.createElement("div"); row.className = "wp-item";
+      row.innerHTML = '<div style="flex:1"><div class="nm">' + (i + 1) + ". " + escapeHtml(s.name) + '</div><div class="co">' + s.lat.toFixed(4) + ", " + s.lon.toFixed(4) + "</div></div>";
+      var del = document.createElement("button"); del.className = "b-soft"; del.textContent = "🗑"; del.onclick = function () { routeStops.splice(i, 1); LS.setItem("gg_stops", JSON.stringify(routeStops)); renderStops(); };
+      row.appendChild(del); c.appendChild(row);
+    });
+  }
   function relDir(rel) { rel = (rel + 360) % 360; if (rel < 22 || rel >= 338) return "geradeaus"; if (rel < 68) return "leicht rechts"; if (rel < 112) return "rechts"; if (rel < 158) return "scharf rechts"; if (rel < 202) return "zurück"; if (rel < 248) return "scharf links"; if (rel < 292) return "links"; return "leicht links"; }
   function updateNavArrow() {
     var sd = $("tgtDot");
@@ -612,7 +690,7 @@
     if ($("cmTgt")) $("cmTgt").textContent = Math.round(brg) + "° " + cardinal(brg) + " · " + d.v + " " + d.u;
     if (sd) { if (smooth != null) { sd.style.display = "block"; var rr = (brg - smooth) * Math.PI / 180; sd.style.transform = "translate(" + (Math.sin(rr) * 76) + "px," + (-Math.cos(rr) * 76) + "px)"; } else sd.style.display = "none"; }
   }
-  $("setTargetBtn").onclick = function () { var la = parseFloat($("inLat").value), lo = parseFloat($("inLon").value); if (isNaN(la) || isNaN(lo)) { toast("Bitte gültige Koordinaten."); return; } setTarget(la, lo, null); toast("Ziel gesetzt."); };
+  $("setTargetBtn").onclick = function () { var la = parseFloat($("inLat").value), lo = parseFloat($("inLon").value); if (isNaN(la) || isNaN(lo)) { toast("Bitte gültige Koordinaten."); return; } pickPlace(la, lo, null); if (!stopMode) toast("Ziel gesetzt."); };
   $("saveWpBtn").onclick = function () { if (!lastFix) { toast("Noch keine Position."); return; } var name = prompt("Name des Wegpunkts:", "Wegpunkt " + (loadWps().length + 1)); if (name == null) return; var wps = loadWps(); wps.push({ lat: lastFix.lat, lon: lastFix.lon, name: name || ("WP " + (wps.length + 1)) }); LS.setItem("gg_wps", JSON.stringify(wps)); renderWps(); };
   function loadWps() { try { return JSON.parse(LS.getItem("gg_wps") || "[]"); } catch (e) { return []; } }
   function renderWps() {
@@ -620,14 +698,18 @@
     wps.forEach(function (w, i) {
       var row = document.createElement("div"); row.className = "wp-item";
       row.innerHTML = '<div style="flex:1"><div class="nm">' + escapeHtml(w.name) + '</div><div class="co">' + w.lat.toFixed(5) + ", " + w.lon.toFixed(5) + "</div></div>";
-      var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "🎯"; go.onclick = function () { setTarget(w.lat, w.lon, w.name); toast("Ziel: " + w.name); };
+      var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "🎯"; go.onclick = function () { pickPlace(w.lat, w.lon, w.name); if (!stopMode) toast("Ziel: " + w.name); };
       var del = document.createElement("button"); del.className = "b-soft"; del.textContent = "🗑"; del.onclick = function () { var a = loadWps(); a.splice(i, 1); LS.setItem("gg_wps", JSON.stringify(a)); renderWps(); };
       row.appendChild(go); row.appendChild(del); c.appendChild(row);
     });
   }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (m) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m]; }); }
   if (target) $("navTarget").textContent = (target.name ? target.name + " · " : "") + target.lat.toFixed(5) + ", " + target.lon.toFixed(5);
-  renderWps(); renderTours();
+  renderWps(); renderTours(); renderStops();
+  if ($("stopModeTgl")) { $("stopModeTgl").classList.toggle("on", stopMode); $("stopModeTgl").onclick = function () { stopMode = !stopMode; this.classList.toggle("on", stopMode); }; }
+  if ($("stopsClear")) $("stopsClear").onclick = function () { routeStops = []; LS.setItem("gg_stops", "[]"); renderStops(); };
+  if ($("avoidHwTgl")) { $("avoidHwTgl").classList.toggle("on", avoidHighways); $("avoidHwTgl").onclick = function () { avoidHighways = !avoidHighways; this.classList.toggle("on", avoidHighways); LS.setItem("gg_avoidhw", avoidHighways ? "1" : "0"); }; }
+  if ($("avoidTollTgl")) { $("avoidTollTgl").classList.toggle("on", avoidTolls); $("avoidTollTgl").onclick = function () { avoidTolls = !avoidTolls; this.classList.toggle("on", avoidTolls); LS.setItem("gg_avoidtoll", avoidTolls ? "1" : "0"); }; }
 
   // ================= Alarme + Sprache =================
   var geoOn = LS.getItem("gg_geo") === "1", voiceOn = LS.getItem("gg_voice") === "1", geoAlerted = false, lastVoice = 0;
@@ -694,7 +776,7 @@
       var row = document.createElement("div"); row.className = "wp-item";
       row.innerHTML = '<div style="flex:1"><div class="nm" style="font-size:.84rem">' + escapeHtml(r.name) + '</div><div class="co">' + r.lat.toFixed(5) + ", " + r.lon.toFixed(5) + "</div></div>";
       var go = document.createElement("button"); go.className = "b-primary"; go.textContent = "🎯";
-      go.onclick = function () { setTarget(r.lat, r.lon, r.name.split(",")[0]); toast("Ziel: " + r.name.split(",")[0]); ensureMap(); if (map) { followMe = false; map.setView([r.lat, r.lon], 15); } };
+      go.onclick = function () { pickPlace(r.lat, r.lon, r.name.split(",")[0]); if (!stopMode) toast("Ziel: " + r.name.split(",")[0]); ensureMap(); if (map) { followMe = false; map.setView([r.lat, r.lon], 15); } };
       row.appendChild(go); c.appendChild(row);
     });
   }
@@ -754,7 +836,9 @@
     if (!target || !lastFix) { toast("Erst Ziel und Position nötig."); return; }
     if (!needOnline()) { $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
     $("rtDist").textContent = "…"; $("rtTime").textContent = "…";
-    var body = { locations: [{ lat: lastFix.lat, lon: lastFix.lon }, { lat: target.lat, lon: target.lon }], costing: navMode, alternates: 2, directions_options: { language: "de", units: "kilometers" } };
+    var locs = [{ lat: lastFix.lat, lon: lastFix.lon }].concat(routeStops.map(function (s) { return { lat: s.lat, lon: s.lon }; })).concat([{ lat: target.lat, lon: target.lon }]);
+    var body = { locations: locs, costing: navMode, alternates: routeStops.length ? 0 : 2, directions_options: { language: "de", units: "kilometers" } };
+    if (navMode === "auto" && (avoidHighways || avoidTolls)) body.costing_options = { auto: { use_highways: avoidHighways ? 0 : 1, use_tolls: avoidTolls ? 0 : 1 } };
     var url = "https://valhalla1.openstreetmap.de/route?json=" + encodeURIComponent(JSON.stringify(body));
     httpJson(url).then(function (j) {
       if (!j || !j.trip || !j.trip.legs || !j.trip.legs.length) { osrmFallback(); return; }
@@ -765,9 +849,13 @@
     });
   }
   function parseTrip(trip) {
-    var leg = trip.legs[0], shape = decodePolyline(leg.shape, 6);
-    var steps = (leg.maneuvers || []).map(function (m) { return { instr: m.instruction || "weiter", icon: maneuverIcon(m.type), street: (m.street_names || []).join(", "), dist: (m.length || 0) * 1000, time: m.time || 0, loc: shape[m.begin_shape_index] || [lastFix.lat, lastFix.lon], _ann: false }; });
-    return { dist: (leg.summary.length || 0) * 1000, secs: leg.summary.time || 0, shape: shape, steps: steps };
+    var shape = [], steps = [];
+    (trip.legs || []).forEach(function (leg) {
+      var lshape = decodePolyline(leg.shape, 6); shape = shape.concat(lshape);
+      (leg.maneuvers || []).forEach(function (m) { steps.push({ instr: m.instruction || "weiter", icon: maneuverIcon(m.type), street: (m.street_names || []).join(", "), dist: (m.length || 0) * 1000, time: m.time || 0, loc: lshape[m.begin_shape_index] || [lastFix.lat, lastFix.lon], _ann: false }); });
+    });
+    var sum = trip.summary || {};
+    return { dist: (sum.length || 0) * 1000, secs: sum.time || 0, shape: shape, steps: steps };
   }
   function osrmFallback() {
     if (navMode !== "auto") { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
@@ -842,7 +930,7 @@
   // ================= Flugradar (FR24-Stil – echte ADS-B-Daten) =================
   var flugMap = null, flugLayer = null, flugTrail = null, flugTimer = null, flugInterval = 8000, flugAutoOn = true, flugVisible = false;
   var followFlugHex = null, lastPlanes = [], flugFilter = "all", flugQuery = "", trailPts = [], acCache = {}, routeCache = {}, detailHex = null, flugRouteLayer = null;
-  var flugMarkers = {}, flugAnim = null;
+  var flugMarkers = {}, flugAnim = null, airportsOn = false, airportLayer = null, airportTimer = null;
   function isEmergency(sq) { return sq === "7500" || sq === "7600" || sq === "7700"; }
   function altColor(ft, emerg) { if (emerg) return "#ef4444"; if (ft == null) return "#94a3b8"; if (ft < 3000) return "#f59e0b"; if (ft < 10000) return "#fbbf24"; if (ft < 20000) return "#34d399"; if (ft < 30000) return "#38bdf8"; return "#818cf8"; }
   function planeIcon(track, color, sel) { return L.divIcon({ className: "", html: '<svg width="24" height="24" viewBox="0 0 24 24" style="transform:rotate(' + (track || 0) + 'deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))"><path fill="' + color + '" stroke="' + (sel ? "#fff" : "rgba(0,0,0,.4)") + '" stroke-width="' + (sel ? 1 : 0.5) + '" d="M21,16v-2l-8-5V3.5C13,2.67,12.33,2,11.5,2S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg>', iconSize: [24, 24], iconAnchor: [12, 12] }); }
@@ -853,7 +941,7 @@
     flugBaseLayer = makeBaseLayer(); flugBaseLayer.addTo(flugMap);
     flugLayer = L.layerGroup().addTo(flugMap);
     flugMarkers = {};
-    flugMap.on("moveend", function () { if (flugVisible) loadFlights(); });
+    flugMap.on("moveend", function () { if (flugVisible) { loadFlights(); if (airportsOn) { if (airportTimer) clearTimeout(airportTimer); airportTimer = setTimeout(loadAirports, 600); } } });
     setTimeout(function () { flugMap.invalidateSize(); }, 60);
   }
   function openFlug() {
@@ -895,10 +983,31 @@
     });
   }
   function passFilter(p) {
-    if (flugQuery) { var q = flugQuery.toLowerCase(); if ((p.flight || "").toLowerCase().indexOf(q) < 0 && (p.reg || "").toLowerCase().indexOf(q) < 0) return false; }
+    if (flugQuery) { var q = flugQuery.toLowerCase(); if ((p.flight || "").toLowerCase().indexOf(q) < 0 && (p.reg || "").toLowerCase().indexOf(q) < 0 && (p.type || "").toLowerCase().indexOf(q) < 0) return false; }
     if (flugFilter === "high" && !(p.alt != null && p.alt >= 10000)) return false;
+    if (flugFilter === "climb" && !(p.rate != null && p.rate > 100)) return false;
+    if (flugFilter === "descend" && !(p.rate != null && p.rate < -100)) return false;
     if (flugFilter === "emerg" && !isEmergency(p.squawk)) return false;
     return true;
+  }
+  // ===== Flughäfen-Layer (OpenStreetMap/Overpass) =====
+  function loadAirports() {
+    if (!flugMap || !airportsOn) return;
+    if (navigator.onLine === false) { toast("Flughäfen brauchen Internet."); return; }
+    var b = flugMap.getBounds(), bbox = b.getSouth().toFixed(3) + "," + b.getWest().toFixed(3) + "," + b.getNorth().toFixed(3) + "," + b.getEast().toFixed(3);
+    var q = '[out:json][timeout:20];(node["aeroway"="aerodrome"]["name"](' + bbox + ');way["aeroway"="aerodrome"]["name"](' + bbox + '););out center 120;';
+    httpJson("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(q)).then(function (j) {
+      if (!airportsOn) return;
+      if (!airportLayer) airportLayer = L.layerGroup().addTo(flugMap); else airportLayer.clearLayers();
+      if (!j || !j.elements) return;
+      j.elements.forEach(function (el) {
+        var lat = el.lat != null ? el.lat : (el.center && el.center.lat), lon = el.lon != null ? el.lon : (el.center && el.center.lon);
+        if (lat == null || lon == null) return;
+        var t = el.tags || {}, iata = t.iata || t["iata"] || "", name = t.name || "Flughafen";
+        L.marker([lat, lon], { icon: L.divIcon({ className: "", html: '<div style="font-size:17px;filter:drop-shadow(0 1px 1px #0008)">🛫</div>', iconSize: [20, 20], iconAnchor: [10, 10] }) })
+          .bindPopup("<b>🛫 " + escapeHtml(name) + "</b>" + (iata ? " (" + escapeHtml(iata) + ")" : "")).addTo(airportLayer);
+      });
+    });
   }
   function renderFlights(planes) {
     var now = Date.now();
@@ -1045,7 +1154,12 @@
   }
   $("flugDetClose").onclick = closeDetail;
   $("flugSearch").addEventListener("input", function () { flugQuery = this.value.trim(); drawFlights(); });
-  Array.prototype.forEach.call($("flugFilter").children, function (b) { b.onclick = function () { flugFilter = b.getAttribute("data-f"); Array.prototype.forEach.call($("flugFilter").children, function (x) { x.classList.toggle("sel", x === b); }); drawFlights(); }; });
+  $("flugFilter").addEventListener("change", function () { flugFilter = this.value; drawFlights(); });
+  $("airportBtn").onclick = function () {
+    airportsOn = !airportsOn; this.className = airportsOn ? "b-primary" : "b-soft";
+    this.style.position = "absolute"; this.style.top = "8px"; this.style.left = "8px"; this.style.zIndex = "600"; this.style.width = "auto"; this.style.padding = "8px 11px"; this.style.fontSize = ".78rem";
+    if (airportsOn) { toast("Lade Flughäfen…"); loadAirports(); } else if (airportLayer) { airportLayer.clearLayers(); }
+  };
   $("flugRefresh").onclick = function () { loadFlights(); };
   $("flugAuto").onclick = function () { flugAutoOn = !flugAutoOn; this.textContent = "⏯ Auto-Refresh: " + (flugAutoOn ? "an" : "aus"); this.className = flugAutoOn ? "b-success" : "b-soft"; if (flugAutoOn) { if (flugVisible) { loadFlights(); flugTimer = setInterval(loadFlights, flugInterval); } } else if (flugTimer) { clearInterval(flugTimer); flugTimer = null; } };
 

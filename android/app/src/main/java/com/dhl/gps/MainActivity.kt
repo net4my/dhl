@@ -172,6 +172,28 @@ class MainActivity : ComponentActivity(), LocationListener, SensorEventListener 
         @JavascriptInterface
         fun notify(title: String, text: String) = runOnUiThread { doNotify(title, text) }
 
+        /** Bild (Daten-URL) teilen, z. B. eine Tour-Grafik. */
+        @JavascriptInterface
+        fun shareImage(dataUrl: String, text: String) = runOnUiThread {
+            try {
+                val base64 = dataUrl.substringAfter(",")
+                val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
+                val dir = File(cacheDir, "shared"); dir.mkdirs()
+                val f = File(dir, "geopilot-tour.png")
+                f.writeBytes(bytes)
+                val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", f)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    if (text.isNotEmpty()) putExtra(Intent.EXTRA_TEXT, text)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(send, "Tour teilen"))
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Teilen fehlgeschlagen: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+
         /** Aktives Ziel für die Android-Auto-Anzeige speichern. */
         @JavascriptInterface
         fun setCarTarget(lat: Double, lon: Double, name: String) {
