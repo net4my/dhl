@@ -335,6 +335,7 @@
     <div class="page" id="page-map">
       <div style="position:relative;flex:1;display:flex">
         <div id="map"></div>
+        <button id="layerBtn" class="b-soft" style="position:absolute;top:8px;right:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛰️ Ebene</button>
         <div class="map-overlay">
           <div class="chip"><span class="k">Offline-Kacheln</span><span id="tileCount">0</span></div>
         </div>
@@ -416,6 +417,7 @@
     <!-- TRACKING -->
     <div class="page" id="page-tracking">
       <div id="trackMap"></div>
+      <button id="layerBtn2" class="b-soft" style="position:absolute;top:8px;right:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛰️ Ebene</button>
       <div id="trackWrap">
         <div class="big-stat">
           <div class="bs-speed"><span id="tkSpeed">0</span> <span class="bs-unit" id="tkSpeedU">km/h</span></div>
@@ -441,7 +443,8 @@
           </div>
         </div>
         <div class="card">
-          <div class="section-title">Höhenprofil</div>
+          <div class="section-title">Diagramm</div>
+          <div class="seg" id="profMode" style="margin-bottom:8px"><button data-pm="alt" class="sel">⛰️ Höhe</button><button data-pm="speed">🚀 Tempo</button></div>
           <canvas class="profile" id="profile" width="600" height="130"></canvas>
         </div>
         <div class="btn-row">
@@ -482,6 +485,7 @@
     <!-- FLUG -->
     <div class="page" id="page-flug">
       <div id="flugMap"></div>
+      <button id="layerBtn3" class="b-soft" style="position:absolute;top:8px;right:8px;z-index:600;width:auto;padding:8px 11px;font-size:.78rem">🛰️ Ebene</button>
       <div id="flugListWrap">
         <div class="section-title" style="margin-top:2px">✈ Flüge in der Nähe <span class="src-tag" id="flugCount">–</span></div>
         <input type="text" id="flugSearch" placeholder="🔎 Rufzeichen / Kennzeichen filtern" style="margin-bottom:8px" />
@@ -567,7 +571,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v2.7 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v2.8 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -620,7 +624,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v2.7 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v2.8 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

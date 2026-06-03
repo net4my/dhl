@@ -321,6 +321,26 @@
   // ================= Karte =================
   var map = null, meMarker = null, accCircle = null, trackLine = null, targetMarker = null, viewLine = null, followMe = true;
   var TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  var TILE_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  var TILE_TOPO = "https://a.tile.opentopomap.org/{z}/{x}/{y}.png";
+  var mapStyle = LS.getItem("gg_mapstyle") || "standard";
+  var mapBaseLayer = null, trackBaseLayer = null, flugBaseLayer = null, compassBaseLayer = null;
+  function makeBaseLayer() {
+    if (mapStyle === "satellite") return L.tileLayer(TILE_SAT, { maxZoom: 19 });
+    if (mapStyle === "terrain") return L.tileLayer(TILE_TOPO, { maxZoom: 17 });
+    return new OfflineLayer(TILE_URL, { maxZoom: 19 });
+  }
+  function swapBase(m, old) { if (!m) return null; if (old) m.removeLayer(old); var nl = makeBaseLayer(); nl.addTo(m); if (nl.bringToBack) nl.bringToBack(); return nl; }
+  function setMapStyle(s) {
+    mapStyle = s; LS.setItem("gg_mapstyle", s);
+    mapBaseLayer = swapBase(map, mapBaseLayer);
+    trackBaseLayer = swapBase(trackMap, trackBaseLayer);
+    flugBaseLayer = swapBase(flugMap, flugBaseLayer);
+    compassBaseLayer = swapBase(compassMap, compassBaseLayer);
+    var names = { standard: "Standard", satellite: "Satellit", terrain: "Gelände" };
+    toast("Karte: " + names[s]);
+  }
+  function cycleMapStyle() { var arr = ["standard", "satellite", "terrain"], i = (arr.indexOf(mapStyle) + 1) % arr.length; setMapStyle(arr[i]); }
   function cacheTile(key, url) { if (!navigator.onLine) return; fetch(url).then(function (r) { return r.ok ? r.blob() : null; }).then(function (b) { if (b) idbPut("tiles", b, key); }).catch(function () {}); }
   var OfflineLayer = (typeof L !== "undefined") ? L.TileLayer.extend({
     createTile: function (coords, done) {
@@ -336,7 +356,7 @@
   function ensureMap() {
     if (map || typeof L === "undefined") { if (map) setTimeout(function () { map.invalidateSize(); }, 50); return; }
     map = L.map("map", { zoomControl: true, attributionControl: false }).setView([51.1657, 10.4515], 5);
-    new OfflineLayer(TILE_URL, { maxZoom: 19 }).addTo(map);
+    mapBaseLayer = makeBaseLayer(); mapBaseLayer.addTo(map);
     trackLine = L.polyline([], { color: "#0ea5e9", weight: 5, opacity: .85 }).addTo(map);
     map.on("dragstart", function () { followMe = false; });
     map.on("click", function (e) { setTarget(e.latlng.lat, e.latlng.lng, null); toast("Ziel auf Karte gesetzt."); });
@@ -355,6 +375,7 @@
     if (followMe) map.setView(ll, Math.max(map.getZoom(), 16));
   }
   $("centerBtn").onclick = function () { followMe = true; if (map && lastFix) map.setView([lastFix.lat, lastFix.lon], 17); };
+  ["layerBtn", "layerBtn2", "layerBtn3"].forEach(function (id) { var b = $(id); if (b) b.onclick = cycleMapStyle; });
 
   // Offline-Bereich herunterladen
   $("dlBtn").onclick = function () {
@@ -382,7 +403,7 @@
     if (compassMap || typeof L === "undefined" || !document.getElementById("compassMap")) { if (compassMap) setTimeout(function () { compassMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
     compassMap = L.map("compassMap", { zoomControl: false, attributionControl: false, doubleClickZoom: false }).setView(c, lastFix ? 16 : 5);
-    new OfflineLayer(TILE_URL, { maxZoom: 19 }).addTo(compassMap);
+    compassBaseLayer = makeBaseLayer(); compassBaseLayer.addTo(compassMap);
     compassMarker = L.marker(c, { icon: L.divIcon({ className: "", html: '<div class="cm-arrow">⬆️</div>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(compassMap);
     setTimeout(function () { compassMap.invalidateSize(); rotateCompassArrow(smooth || 0); }, 80);
   }
@@ -452,7 +473,7 @@
     if (trackMap || typeof L === "undefined") { if (trackMap) setTimeout(function () { trackMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
     trackMap = L.map("trackMap", { zoomControl: true, attributionControl: false }).setView(c, lastFix ? 15 : 5);
-    new OfflineLayer(TILE_URL, { maxZoom: 19 }).addTo(trackMap);
+    trackBaseLayer = makeBaseLayer(); trackBaseLayer.addTo(trackMap);
     trackLine2 = L.polyline(track.map(function (p) { return [p.lat, p.lon]; }), { color: "#10b981", weight: 5, opacity: .9 }).addTo(trackMap);
     trackMap.on("dragstart", function () { trackFollow = false; });
     if (lastFix) updateTrackMap(lastFix);
@@ -490,22 +511,35 @@
     $("tcMove").textContent = (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss;
     $("tcUp").textContent = fmtAlt(s.up); $("tcDown").textContent = fmtAlt(s.down);
   }
-  var profilePts = null;
+  var profilePts = null, profileMode = "alt";
+  function profMsg(ctx, W, H, t) { ctx.fillStyle = "#94a3b8"; ctx.font = "14px sans-serif"; ctx.textAlign = "center"; ctx.fillText(t, W / 2, H / 2); ctx.textAlign = "left"; }
   function drawProfile() {
     var pts = profilePts || track, cv = $("profile"); if (!cv) return; var ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
     ctx.clearRect(0, 0, W, H);
-    var alts = pts.filter(function (p) { return p.alt != null && !isNaN(p.alt); });
-    if (alts.length < 2) { ctx.fillStyle = "#94a3b8"; ctx.font = "16px sans-serif"; ctx.fillText("Keine Höhendaten", 12, H / 2); return; }
-    var min = Math.min.apply(null, alts.map(function (p) { return p.alt; })), max = Math.max.apply(null, alts.map(function (p) { return p.alt; }));
-    if (max - min < 1) max = min + 1;
+    if (pts.length < 2) { profMsg(ctx, W, H, "Noch keine Aufzeichnung"); return; }
     var cum = [0]; for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversine(pts[i - 1].lat, pts[i - 1].lon, pts[i].lat, pts[i].lon));
-    var total = cum[cum.length - 1] || 1;
-    ctx.beginPath();
-    for (var j = 0; j < pts.length; j++) { if (pts[j].alt == null || isNaN(pts[j].alt)) continue; var x = cum[j] / total * W, y = H - (pts[j].alt - min) / (max - min) * (H - 10) - 5; if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
-    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-    var grd = ctx.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, "rgba(14,165,233,.55)"); grd.addColorStop(1, "rgba(14,165,233,.04)"); ctx.fillStyle = grd; ctx.fill();
-    ctx.fillStyle = "#94a3b8"; ctx.font = "11px sans-serif"; ctx.fillText(Math.round(max) + " m", 4, 12); ctx.fillText(Math.round(min) + " m", 4, H - 4);
+    var total = cum[cum.length - 1] || 1, ser = [];
+    if (profileMode === "speed") {
+      for (var k = 1; k < pts.length; k++) { var dt = (pts[k].t - pts[k - 1].t) / 1000, dd = haversine(pts[k - 1].lat, pts[k - 1].lon, pts[k].lat, pts[k].lon); var ms = dt > 0 ? dd / dt : 0; ser.push({ x: cum[k], y: ms * (isImp() ? 2.23694 : 3.6) }); }
+    } else {
+      for (var m = 0; m < pts.length; m++) { if (pts[m].alt == null || isNaN(pts[m].alt)) continue; ser.push({ x: cum[m], y: pts[m].alt * (isImp() ? 3.28084 : 1) }); }
+    }
+    if (ser.length < 2) { profMsg(ctx, W, H, profileMode === "speed" ? "Keine Tempodaten" : "Keine Höhendaten"); return; }
+    var ys = ser.map(function (s) { return s.y; }), min = Math.min.apply(null, ys), max = Math.max.apply(null, ys);
+    if (profileMode === "speed") min = 0; if (max - min < 1) max = min + 1;
+    function px(s) { return s.x / total * W; } function py(s) { return H - (s.y - min) / (max - min) * (H - 12) - 6; }
+    ctx.beginPath(); ser.forEach(function (s, idx) { var x = px(s), y = py(s); if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.lineTo(px(ser[ser.length - 1]), H); ctx.lineTo(px(ser[0]), H); ctx.closePath();
+    var sp = profileMode === "speed", grd = ctx.createLinearGradient(0, 0, 0, H);
+    grd.addColorStop(0, sp ? "rgba(16,163,74,.5)" : "rgba(37,99,235,.5)"); grd.addColorStop(1, sp ? "rgba(16,163,74,.04)" : "rgba(37,99,235,.04)");
+    ctx.fillStyle = grd; ctx.fill();
+    ctx.beginPath(); ser.forEach(function (s, idx) { var x = px(s), y = py(s); if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.strokeStyle = sp ? "#16a34a" : "#2563eb"; ctx.lineWidth = 2; ctx.stroke();
+    var unit = sp ? (isImp() ? " mph" : " km/h") : (isImp() ? " ft" : " m");
+    ctx.fillStyle = "#94a3b8"; ctx.font = "11px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText(Math.round(max) + unit, 4, 12); ctx.fillText(Math.round(min) + unit, 4, H - 4);
   }
+  if ($("profMode")) Array.prototype.forEach.call($("profMode").children, function (b) { b.onclick = function () { profileMode = b.getAttribute("data-pm"); Array.prototype.forEach.call($("profMode").children, function (x) { x.classList.toggle("sel", x === b); }); drawProfile(); }; });
 
   // ================= Touren speichern / laden =================
   $("saveTourBtn").onclick = function () {
@@ -666,6 +700,21 @@
   }
   $("addrBtn").onclick = doSearch;
   $("addrInput").addEventListener("keydown", function (e) { if (e.key === "Enter") doSearch(); });
+  var addrTimer = null;
+  $("addrInput").addEventListener("input", function () {
+    var q = this.value.trim();
+    if (addrTimer) clearTimeout(addrTimer);
+    if (q.length < 3) { $("addrResults").innerHTML = ""; return; }
+    if (navigator.onLine === false) return;
+    addrTimer = setTimeout(function () {
+      nativeGeocode(q).then(function (arr) {
+        if (arr && arr.length) { showAddrResults(arr); return; }
+        httpJson("https://nominatim.openstreetmap.org/search?format=json&limit=6&q=" + encodeURIComponent(q)).then(function (list) {
+          if (list && list.length) showAddrResults(list.map(function (r) { return { name: r.display_name, lat: parseFloat(r.lat), lon: parseFloat(r.lon) }; }));
+        });
+      });
+    }, 450);
+  });
 
   // ================= Navigation (Valhalla, mehrmodal) =================
   var routeLine = null, routeSteps = [], routeStepIdx = 0, routeShape = [], navActive = false, lastReroute = 0, pendingNavStart = false;
@@ -801,7 +850,7 @@
     if (flugMap || typeof L === "undefined") { if (flugMap) setTimeout(function () { flugMap.invalidateSize(); }, 50); return; }
     var c = lastFix ? [lastFix.lat, lastFix.lon] : [51.1657, 10.4515];
     flugMap = L.map("flugMap", { zoomControl: true, attributionControl: false }).setView(c, lastFix ? 9 : 5);
-    new OfflineLayer(TILE_URL, { maxZoom: 19 }).addTo(flugMap);
+    flugBaseLayer = makeBaseLayer(); flugBaseLayer.addTo(flugMap);
     flugLayer = L.layerGroup().addTo(flugMap);
     flugMarkers = {};
     flugMap.on("moveend", function () { if (flugVisible) loadFlights(); });

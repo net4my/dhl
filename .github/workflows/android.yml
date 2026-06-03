@@ -66,17 +66,15 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.7
-          name: GeoPilot v2.7
+          tag_name: v2.8
+          name: GeoPilot v2.8
           body: |
-            GeoPilot – modernes Design & Onboarding.
+            GeoPilot – Detail-Vervollständigung pro Tab.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            Neu in v2.7:
-            • **Helles, modernes Theme als Standard** mit feinerem Farbsystem & sanften
-              Schatten (Dunkel/Nacht weiterhin in den Einstellungen).
-            • **Dashboard neu**: großer Kompass-Hero, darunter kompakte Info-Kacheln
-              (Tempo, Höhe, Kurs, Genauigkeit), Details aufklappbar.
-            • **Onboarding-Tour** beim ersten Start, die alle Tabs & Funktionen kurz
-              vorstellt (jederzeit unter Mehr → „Einführungstour" erneut startbar).
+            Neu in v2.8:
+            • **Karten-Ebenen**: Umschalter auf allen Karten – **Standard · Satellit · Gelände**
+              (Esri-Luftbild & OpenTopoMap).
+            • **Tracking-Diagramm**: umschaltbar zwischen **Höhenprofil** und **Tempo-Verlauf**.
+            • **Adress-Suche mit Live-Vorschlägen** (Autocomplete während des Tippens).
           files: android/GeoPilot.apk
