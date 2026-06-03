@@ -261,7 +261,7 @@
     if (hasNative()) { try { window.Android.stopLocation(); } catch (e) {} }
     if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
     // Alles, was Strom zieht, beenden:
-    if (typeof recording !== "undefined" && recording) { recording = false; if (recTimer) { clearInterval(recTimer); recTimer = null; } if ($("recBtn")) { $("recBtn").textContent = "⏺ Start"; $("recBtn").className = "b-success"; } if ($("tkState")) $("tkState").textContent = "Gestoppt"; }
+    if (typeof recording !== "undefined" && recording) { recording = false; if (typeof saveActivity === "function") saveActivity(); if (recTimer) { clearInterval(recTimer); recTimer = null; } if ($("recBtn")) { $("recBtn").textContent = "⏺ Start"; $("recBtn").className = "b-success"; } if ($("tkState")) $("tkState").textContent = "Gestoppt"; }
     if (typeof pauseFlug === "function") pauseFlug();
     setStatus("", "Aus");
   }
@@ -486,13 +486,14 @@
     if (!recording && !appActive) { toast("Bitte zuerst oben den Schalter (GPS) einschalten."); return; }
     recording = !recording; var b = $("recBtn");
     if (recording) {
-      if (track.length === 0) { trackDist = 0; trackStart = Date.now(); maxSpeed = 0; if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]); }
+      if (track.length === 0) { trackDist = 0; trackStart = Date.now(); maxSpeed = 0; journalSaved = false; if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]); }
       b.textContent = "⏸ Pause"; b.className = "b-warn"; recTimer = setInterval(refreshTrackStats, 1000);
       $("tkState").textContent = "● Aufzeichnung läuft";
     } else { b.textContent = "⏺ Start"; b.className = "b-success"; if (recTimer) { clearInterval(recTimer); recTimer = null; } $("tkState").textContent = "Pausiert"; }
   };
   $("recStopBtn").onclick = function () {
     recording = false; autoPaused = false; if (recTimer) { clearInterval(recTimer); recTimer = null; }
+    saveActivity();
     track = []; trackDist = 0; trackStart = 0; maxSpeed = 0; profilePts = null;
     laps = []; lastLapDist = 0; lastLapTime = 0; renderLaps();
     if (trackLine) trackLine.setLatLngs([]); if (trackLine2) trackLine2.setLatLngs([]);
@@ -593,6 +594,83 @@
     var s = trackStats(track), mm = Math.floor(s.moveSec / 60), ss = Math.floor(s.moveSec % 60);
     $("tcMove").textContent = (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss;
     $("tcUp").textContent = fmtAlt(s.up); $("tcDown").textContent = fmtAlt(s.down);
+  }
+
+  // ================= Aktivitäts-Logbuch & Statistik =================
+  var journalSaved = false;
+  function loadJournal() { try { return JSON.parse(LS.getItem("gg_journal") || "[]"); } catch (e) { return []; } }
+  function saveJournalArr(a) { LS.setItem("gg_journal", JSON.stringify(a)); }
+  function activityType(avgMs) {
+    if (avgMs < 2.2) return { i: "🚶", n: "Zu Fuß" };
+    if (avgMs < 4.2) return { i: "🏃", n: "Laufen" };
+    if (avgMs < 9) return { i: "🚴", n: "Rad" };
+    return { i: "🚗", n: "Fahrt" };
+  }
+  function saveActivity() {
+    if (journalSaved || !trackStart || trackDist < 50) return false;
+    var s = trackStats(track), durSec = Math.max(1, Math.floor((Date.now() - trackStart) / 1000));
+    var avg = trackDist / durSec, t = activityType(avg);
+    var entry = { id: Date.now(), date: trackStart, dist: Math.round(trackDist), durSec: durSec, moveSec: Math.round(s.moveSec), avg: avg, max: maxSpeed, up: Math.round(s.up), down: Math.round(s.down), type: t.n, icon: t.i };
+    var a = loadJournal(); a.unshift(entry); if (a.length > 500) a = a.slice(0, 500); saveJournalArr(a);
+    journalSaved = true; renderJournal(); renderStats();
+    var d = fmtDist(trackDist); toast("✅ Aktivität gespeichert: " + t.i + " " + d.v + " " + d.u);
+    return true;
+  }
+  function dayKey(ts) { var d = new Date(ts); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+  function renderStats() {
+    var a = loadJournal(), now = new Date();
+    var todayK = dayKey(now.getTime());
+    var weekStart = new Date(now); var dow = (now.getDay() + 6) % 7; weekStart.setHours(0, 0, 0, 0); weekStart.setDate(now.getDate() - dow);
+    var today = 0, week = 0, total = 0;
+    a.forEach(function (e) {
+      total += e.dist;
+      if (dayKey(e.date) === todayK) today += e.dist;
+      if (e.date >= weekStart.getTime()) week += e.dist;
+    });
+    function km(m) { var d = fmtDist(m); return d.v + " " + d.u; }
+    if ($("statToday")) $("statToday").textContent = km(today);
+    if ($("statWeek")) $("statWeek").textContent = km(week);
+    if ($("statTotal")) $("statTotal").textContent = km(total);
+    if ($("statCount")) $("statCount").textContent = String(a.length);
+    if ($("hubToday")) $("hubToday").textContent = km(today);
+    drawStatChart(a);
+  }
+  function drawStatChart(a) {
+    var cv = $("statChart"); if (!cv) return; var ctx = cv.getContext("2d"); var W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    var days = [], labels = [], now = new Date();
+    for (var i = 6; i >= 0; i--) { var d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(now.getDate() - i); days.push({ k: dayKey(d.getTime()), v: 0, lbl: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()] }); }
+    a.forEach(function (e) { var k = dayKey(e.date); days.forEach(function (dd) { if (dd.k === k) dd.v += e.dist; }); });
+    var max = Math.max.apply(null, days.map(function (d) { return d.v; }).concat([1]));
+    var cs = getComputedStyle(document.documentElement);
+    var prim = cs.getPropertyValue("--primary").trim() || "#2563eb", mut = cs.getPropertyValue("--text-muted").trim() || "#64748b";
+    var n = days.length, bw = W / n * 0.56, gap = W / n;
+    days.forEach(function (d, i) {
+      var x = i * gap + (gap - bw) / 2, h = Math.round((d.v / max) * (H - 34));
+      ctx.fillStyle = prim; rr2(ctx, x, H - 22 - h, bw, h, 5); ctx.fill();
+      ctx.fillStyle = mut; ctx.font = "16px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(d.lbl, x + bw / 2, H - 5);
+      if (d.v > 0) { ctx.fillStyle = mut; ctx.font = "13px sans-serif"; ctx.fillText((d.v / 1000).toFixed(1), x + bw / 2, H - 26 - h); }
+    });
+  }
+  function rr2(ctx, x, y, w, h, r) { r = Math.min(r, h / 2, w / 2); if (h <= 0) return; ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function renderJournal() {
+    var c = $("journalList"); if (!c) return; var a = loadJournal();
+    if (!a.length) { c.innerHTML = '<div class="hint" style="text-align:left">Noch keine Aktivität. Starte oben eine Aufzeichnung – beim Stoppen wird sie automatisch gespeichert.</div>'; return; }
+    c.innerHTML = "";
+    a.slice(0, 30).forEach(function (e) {
+      var d = fmtDist(e.dist), dt = new Date(e.date), mm = Math.floor(e.durSec / 60), hh = Math.floor(mm / 60);
+      var dur = hh > 0 ? hh + " h " + (mm % 60) + " min" : mm + " min";
+      var when = dt.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }) + " · " + dt.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      var row = document.createElement("div"); row.className = "flight-card";
+      row.innerHTML = '<div class="fc-ic" style="font-size:22px;display:flex;align-items:center;justify-content:center">' + e.icon + '</div>' +
+        '<div class="fc-main"><div class="fc-top"><span class="fc-cs" style="font-size:.95rem">' + d.v + " " + d.u + '</span><span class="fc-reg">' + escapeHtml(e.type) + '</span></div>' +
+        '<div class="fc-route">' + when + " · " + dur + (e.up ? " · ⬆ " + fmtAlt(e.up) + (isImp() ? " ft" : " m") : "") + '</div></div>' +
+        '<div class="fc-alt"><div class="a">' + fmtSpeed(e.avg) + '</div><div class="u">' + (isImp() ? "mph" : "km/h") + ' Ø</div></div>';
+      var del = document.createElement("button"); del.className = "b-soft"; del.style.cssText = "flex:0 0 auto;width:38px;padding:8px"; del.textContent = "🗑";
+      del.onclick = function () { var arr = loadJournal().filter(function (x) { return x.id !== e.id; }); saveJournalArr(arr); renderJournal(); renderStats(); };
+      row.appendChild(del); c.appendChild(row);
+    });
   }
   var profilePts = null, profileMode = "alt";
   function profMsg(ctx, W, H, t) { ctx.fillStyle = "#94a3b8"; ctx.font = "14px sans-serif"; ctx.textAlign = "center"; ctx.fillText(t, W / 2, H / 2); ctx.textAlign = "left"; }
@@ -815,6 +893,8 @@
   if ($("poiRow")) Array.prototype.forEach.call($("poiRow").children, function (b) { b.onclick = function () { poiSearch(b.getAttribute("data-poi")); }; });
 
   renderWps(); renderTours(); renderStops();
+  renderJournal(); renderStats();
+  if ($("journalClear")) $("journalClear").onclick = function () { if (!loadJournal().length) { toast("Verlauf ist leer."); return; } if (confirm("Aktivitäts-Verlauf wirklich löschen?")) { saveJournalArr([]); renderJournal(); renderStats(); toast("Verlauf gelöscht."); } };
   if ($("stopModeTgl")) { $("stopModeTgl").classList.toggle("on", stopMode); $("stopModeTgl").onclick = function () { stopMode = !stopMode; this.classList.toggle("on", stopMode); }; }
   if ($("stopsClear")) $("stopsClear").onclick = function () { routeStops = []; LS.setItem("gg_stops", "[]"); renderStops(); };
   if ($("avoidHwTgl")) { $("avoidHwTgl").classList.toggle("on", avoidHighways); $("avoidHwTgl").onclick = function () { avoidHighways = !avoidHighways; this.classList.toggle("on", avoidHighways); LS.setItem("gg_avoidhw", avoidHighways ? "1" : "0"); }; }

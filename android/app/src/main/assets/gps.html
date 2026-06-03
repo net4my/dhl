@@ -303,6 +303,7 @@
         <div>
           <div class="hub-title">GeoPilot</div>
           <div class="hub-sub" id="hubStatus">App ist aus – oben einschalten</div>
+          <div class="hub-sub" style="margin-top:1px">📅 Heute: <b id="hubToday" style="color:var(--text-main)">0,00 km</b></div>
         </div>
         <div class="hub-power" id="hubPower"><span id="hubDot" class="dot"></span><span id="hubPowerTxt">Aus</span></div>
       </div>
@@ -564,6 +565,19 @@
         <button id="importBtn" class="b-soft full-btn" style="margin-top:9px">📂 GPX importieren</button>
         <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml" style="display:none" />
         <div class="card" style="margin-top:12px">
+          <div class="section-title">📊 Aktivitäten &amp; Statistik</div>
+          <div class="grid">
+            <div class="metric"><div class="label">📅 Heute</div><div class="value" id="statToday" style="font-size:1rem">0,00 km</div></div>
+            <div class="metric"><div class="label">🗓 Diese Woche</div><div class="value" id="statWeek" style="font-size:1rem">0,00 km</div></div>
+            <div class="metric"><div class="label">∑ Gesamt</div><div class="value" id="statTotal" style="font-size:1rem">0,00 km</div></div>
+            <div class="metric"><div class="label">🏃 Aktivitäten</div><div class="value" id="statCount" style="font-size:1rem">0</div></div>
+          </div>
+          <div class="hint" style="text-align:left;margin:10px 0 4px">Letzte 7 Tage</div>
+          <canvas class="profile" id="statChart" width="600" height="120" style="height:120px"></canvas>
+          <div id="journalList" style="margin-top:10px"><div class="hint" style="text-align:left">Noch keine Aktivität. Starte oben eine Aufzeichnung – beim Stoppen wird sie automatisch gespeichert.</div></div>
+          <button id="journalClear" class="b-soft full-btn" style="margin-top:8px">🗑 Verlauf löschen</button>
+        </div>
+        <div class="card" style="margin-top:12px">
           <div class="section-title">Gespeicherte Touren</div>
           <div id="tourList"><div class="hint">Noch keine Touren gespeichert.</div></div>
         </div>
@@ -689,7 +703,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.14 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.15 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -742,7 +756,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.14 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.15 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 

@@ -66,21 +66,21 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.14
-          name: GeoPilot v3.14
+          tag_name: v3.15
+          name: GeoPilot v3.15
           body: |
-            GeoPilot 3.14 – echte Android-Auto-Navigation mit Karte & Kompass.
+            GeoPilot 3.15 – Aktivitäten werden gespeichert + Statistik.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Android Auto: gerenderte Straßenkarte** auf dem Auto-Display
-              (Heading-up, dreht sich in Fahrtrichtung), mit Positions-Chevron.
-            • **Live-HUD im Auto:** Tempo, **Höhenmesser**, Kurs (Grad + Himmelsrichtung),
-              aktueller **Straßenname** und – wenn ein Ziel gesetzt ist – Entfernung,
-              Ankunftszeit (ETA) und Zielpeilung direkt auf der Karte.
-            • **Kompass-Rose** und Tag/Nacht-Karte (dunkel = FR24-Stil), Zoom +/− und
-              „Neu zentrieren" als Auto-Buttons; „Daten"-Ansicht mit Detailwerten.
-            • Ziel aus der Handy-App (Navigation → Ziel) erscheint automatisch im Auto.
+            • **Automatisches Logbuch:** Jede Aufzeichnung wird beim Stoppen automatisch
+              gespeichert (Strecke, Dauer, Ø/Max-Tempo, Höhenmeter, Typ 🚶🏃🚴🚗) –
+              kein „Tour speichern" mehr nötig.
+            • **Statistik** im Tracking-Tab: Heute / Diese Woche / Gesamt / Anzahl,
+              ein **7-Tage-Balkendiagramm** und die Liste der letzten Aktivitäten
+              (einzeln löschbar).
+            • **„Heute"** auch direkt auf der Startseite sichtbar.
 
-            Hinweis: Android Auto braucht ein verbundenes Auto/Head-Unit; die Karte
-            lädt Online-Kacheln. Standort in der App muss aktiv/erlaubt sein.
+            So erscheint z. B. „heute 2 km gelaufen" künftig automatisch als Eintrag.
+            Hinweis: Aufzeichnung im Tracking-Tab starten (GPS muss an sein) – beim
+            Stoppen/Reset wird die Aktivität gespeichert.
           files: android/GeoPilot.apk
