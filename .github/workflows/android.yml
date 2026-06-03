@@ -66,21 +66,18 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.15
-          name: GeoPilot v3.15
+          tag_name: v3.16
+          name: GeoPilot v3.16
           body: |
-            GeoPilot 3.15 – Aktivitäten werden gespeichert + Statistik.
+            GeoPilot 3.16 – klare Navigations-Meldungen + Android-Auto-Hilfe.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Automatisches Logbuch:** Jede Aufzeichnung wird beim Stoppen automatisch
-              gespeichert (Strecke, Dauer, Ø/Max-Tempo, Höhenmeter, Typ 🚶🏃🚴🚗) –
-              kein „Tour speichern" mehr nötig.
-            • **Statistik** im Tracking-Tab: Heute / Diese Woche / Gesamt / Anzahl,
-              ein **7-Tage-Balkendiagramm** und die Liste der letzten Aktivitäten
-              (einzeln löschbar).
-            • **„Heute"** auch direkt auf der Startseite sichtbar.
-
-            So erscheint z. B. „heute 2 km gelaufen" künftig automatisch als Eintrag.
-            Hinweis: Aufzeichnung im Tracking-Tab starten (GPS muss an sein) – beim
-            Stoppen/Reset wird die Aktivität gespeichert.
+            • **Navigation sagt jetzt, woran es liegt:** statt stillem Fehlschlag klare
+              Hinweise – „Kein Ziel", „Kein Standort (Schalter an)", „Kein Internet"
+              oder „Router nicht erreichbar – erneut versuchen".
+            • **Robustere Routenberechnung:** wenn Valhalla nicht antwortet, wird OSRM
+              als Reserve für alle Modi genutzt.
+            • **Android-Auto-Anleitung** in der App (Mehr → „Android Auto einrichten"):
+              warum die App nur erscheint, wenn in Android Auto „Unbekannte Quellen"
+              aktiviert und das Handy mit dem Auto verbunden ist.
           files: android/GeoPilot.apk

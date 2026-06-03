@@ -1021,10 +1021,12 @@
   }
   function osrmIcon(mod) { return ({ left: "⬅️", right: "➡️", "slight left": "↖️", "slight right": "↗️", "sharp left": "↙️", "sharp right": "↘️", straight: "⬆️", uturn: "↩️" })[mod] || "⬆️"; }
   function fmtDur(secs) { var m = Math.round(secs / 60); if (m < 1) return "< 1 min"; if (m < 60) return m + " min"; return Math.floor(m / 60) + " h " + (m % 60) + " min"; }
+  function navMsg(html) { var c = $("steps"); if (c) c.innerHTML = '<div class="hint" style="text-align:left;line-height:1.6">' + html + '</div>'; }
   function calcRoute() {
-    if (!target || !lastFix) { toast("Erst Ziel und Position nötig."); return; }
-    if (!needOnline()) { $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
-    $("rtDist").textContent = "…"; $("rtTime").textContent = "…";
+    if (!target) { navMsg("🎯 <b>Kein Ziel gesetzt.</b><br>Suche oben unter „Wohin?“ eine Adresse oder wähle ein Schnellziel/POI."); toast("Erst ein Ziel setzen."); return; }
+    if (!lastFix) { navMsg("📍 <b>Kein Standort.</b><br>Schalte oben rechts den Schalter ein und erlaube den Standort, dann „Route berechnen“."); toast("Erst Standort einschalten."); return; }
+    if (!needOnline()) { $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; navMsg("📡 <b>Kein Internet.</b><br>Die Routenberechnung braucht eine Online-Verbindung."); return; }
+    $("rtDist").textContent = "…"; $("rtTime").textContent = "…"; navMsg("⏳ Route wird berechnet…");
     var locs = [{ lat: lastFix.lat, lon: lastFix.lon }].concat(routeStops.map(function (s) { return { lat: s.lat, lon: s.lon }; })).concat([{ lat: target.lat, lon: target.lon }]);
     var body = { locations: locs, costing: navMode, alternates: routeStops.length ? 0 : 2, directions_options: { language: "de", units: "kilometers" } };
     if (navMode === "auto" && (avoidHighways || avoidTolls)) body.costing_options = { auto: { use_highways: avoidHighways ? 0 : 1, use_tolls: avoidTolls ? 0 : 1 } };
@@ -1046,11 +1048,15 @@
     var sum = trip.summary || {};
     return { dist: (sum.length || 0) * 1000, secs: sum.time || 0, shape: shape, steps: steps };
   }
+  function routeFailMsg() {
+    $("rtDist").textContent = "--"; $("rtTime").textContent = "--";
+    navMsg("❌ <b>Route konnte nicht berechnet werden.</b><br>Der Routen-Dienst ist gerade nicht erreichbar (Netz/Anbieter). Bitte erneut „Route berechnen“ tippen, ein anderes Netz/WLAN probieren – oder kurz warten.");
+    toast("Router nicht erreichbar.");
+  }
   function osrmFallback() {
-    if (navMode !== "auto") { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
     var url = "https://router.project-osrm.org/route/v1/driving/" + lastFix.lon + "," + lastFix.lat + ";" + target.lon + "," + target.lat + "?overview=full&geometries=geojson&steps=true";
     httpJson(url).then(function (j) {
-      if (!j || j.code !== "Ok" || !j.routes || !j.routes.length) { toast("Route nicht gefunden (oder offline)."); $("rtDist").textContent = "--"; $("rtTime").textContent = "--"; return; }
+      if (!j || j.code !== "Ok" || !j.routes || !j.routes.length) { routeFailMsg(); return; }
       var rt = j.routes[0], shape = rt.geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
       var st = (rt.legs && rt.legs[0] && rt.legs[0].steps) ? rt.legs[0].steps : [];
       var steps = st.map(function (s) { var mo = (s.maneuver && s.maneuver.modifier) || "", nm = s.name || ""; var dir = { left: "links", right: "rechts", "slight left": "leicht links", "slight right": "leicht rechts", "sharp left": "scharf links", "sharp right": "scharf rechts", straight: "geradeaus", uturn: "wenden" }[mo] || ""; return { instr: ("Weiter " + dir).trim() + (nm ? " auf " + nm : ""), icon: osrmIcon(mo), street: nm, dist: s.distance, time: s.duration, loc: [s.maneuver.location[1], s.maneuver.location[0]], _ann: false }; });
