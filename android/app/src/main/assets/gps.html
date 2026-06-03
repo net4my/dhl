@@ -103,6 +103,15 @@
   .tour-dots i.on{background:var(--primary);width:18px;border-radius:4px;}
   .tour-btns{display:flex;gap:10px;}
   .tour-btns button{flex:1;}
+  /* Hauptschalter / Power-Screen */
+  #powerOverlay{position:fixed;inset:0;z-index:4000;background:var(--bg-body);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:34px;}
+  #powerOverlay.hide{display:none;}
+  .power-logo{width:88px;height:88px;border-radius:24px;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:44px;box-shadow:0 12px 40px rgba(37,99,235,.35);}
+  .power-title{font-size:1.8rem;font-weight:800;}
+  .power-sub{font-size:.95rem;color:var(--text-muted);max-width:330px;line-height:1.55;}
+  .power-btn{width:118px;height:118px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--success),#0f9d58);color:#fff;font-size:52px;box-shadow:0 10px 30px rgba(22,163,74,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:6px;transition:transform .1s;}
+  .power-btn:active{transform:scale(.95);}
+  .power-hint{font-size:.8rem;color:var(--text-muted);}
 
   button{font-family:inherit;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:.88rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .08s;}
   button:active{transform:scale(.97);}
@@ -572,6 +581,7 @@
         <div class="section-title">Darstellung &amp; Einstellungen</div>
         <div class="switch"><div><div class="t">Helles Design</div></div><div class="toggle" id="themeTgl"></div></div>
         <div class="switch"><div><div class="t">🔴 Nachtmodus (Rotlicht)</div><div class="d">Schont die Nachtsicht</div></div><div class="toggle" id="nightTgl"></div></div>
+        <div class="switch"><div><div class="t">⏻ Beim Start automatisch einschalten</div><div class="d">Überspringt den Aus-Zustand beim App-Start</div></div><div class="toggle" id="autoOnTgl"></div></div>
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
@@ -582,7 +592,7 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.2 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.3 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
@@ -635,7 +645,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.2 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.3 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 
@@ -673,6 +683,15 @@
   </div>
 
   <div id="toast"></div>
+
+  <!-- Hauptschalter / Power-Screen -->
+  <div id="powerOverlay">
+    <div class="power-logo">🛰️</div>
+    <div class="power-title">GeoPilot</div>
+    <div class="power-sub">Die App ist aus. Tippe auf Einschalten, um GPS, Kompass und alle Funktionen zu aktivieren.</div>
+    <button class="power-btn" id="powerOnBtn">⏻</button>
+    <div class="power-hint">🔋 Spart Strom – im Aus-Zustand läuft nichts.</div>
+  </div>
 
 <script src="app.js"></script>
 </body>

@@ -11,8 +11,8 @@ android {
         applicationId = "com.dhl.gps"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "3.2"
+        versionCode = 24
+        versionName = "3.3"
     }
 
     // Fester Signaturschlüssel, damit Updates über vorherige Installationen
