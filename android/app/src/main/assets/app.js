@@ -152,7 +152,7 @@
   }
 
   // ================= Status & Kompass =================
-  function setStatus(s, t) { $("dot").className = "dot " + (s || ""); $("statusText").textContent = t; }
+  function setStatus(s, t) { $("dot").className = "dot " + (s || ""); $("statusText").textContent = t; if ($("hubDot")) $("hubDot").className = "dot " + (s || ""); if ($("hubPowerTxt")) $("hubPowerTxt").textContent = t; }
   (function () {
     var ticks = $("ticks");
     for (var d = 0; d < 360; d += 15) { var t = document.createElement("div"); t.className = "tick" + (d % 45 === 0 ? " major" : ""); t.style.transform = "translate(-50%,-100%) rotate(" + d + "deg)"; t.innerHTML = "<i></i>"; ticks.appendChild(t); }
@@ -252,7 +252,7 @@
     } else { window.addEventListener("deviceorientationabsolute", handler, true); window.addEventListener("deviceorientation", handler, true); }
   }
   var appActive = false;
-  function syncSwitch() { var t = $("masterToggle"); if (t) t.classList.toggle("on", appActive); }
+  function syncSwitch() { var t = $("masterToggle"); if (t) t.classList.toggle("on", appActive); if ($("hubStatus")) $("hubStatus").textContent = appActive ? "Aktiv – Live-Daten laufen" : "App ist aus – oben einschalten"; }
   function startTracking() { appActive = true; syncSwitch(); if (hasNative()) { try { window.Android.startLocation(); } catch (e) {} setStatus("warn", "Suche Signal…"); } else startWeb(); setTimeout(ensureCompassMap, 200); }
   function stopTracking() {
     appActive = false; syncSwitch();
@@ -309,6 +309,8 @@
     if (tab === "flug") openFlug(); else pauseFlug();
   });
   function switchTab(tab) { var b = nav.querySelector('[data-tab="' + tab + '"]'); if (b) b.click(); }
+  Array.prototype.forEach.call(document.querySelectorAll(".launch-tile"), function (b) { b.onclick = function () { switchTab(b.getAttribute("data-go")); }; });
+  if ($("hubPower")) $("hubPower").onclick = function () { $("masterBtn").click(); };
 
   // ================= IndexedDB (Kacheln + Touren) =================
   var dbPromise = null;
@@ -1338,10 +1340,22 @@
   }
 
   // ================= Einstellungen =================
-  function applyTheme(t) { document.documentElement.setAttribute("data-theme", t); $("themeTgl").classList.toggle("on", t === "light"); $("nightTgl").classList.toggle("on", t === "night"); LS.setItem("gg_theme", t); var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute("content", t === "night" ? "#000000" : t === "light" ? "#f1f5f9" : "#0f172a"); }
-  applyTheme(LS.getItem("gg_theme") || "light");
-  $("themeTgl").onclick = function () { applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light"); };
-  $("nightTgl").onclick = function () { applyTheme(document.documentElement.getAttribute("data-theme") === "night" ? "dark" : "night"); };
+  var baseTheme = LS.getItem("gg_basetheme");
+  if (!baseTheme) { var old = LS.getItem("gg_theme"); baseTheme = (old === "dark" || old === "light") ? old : "auto"; }
+  var nightOn = LS.getItem("gg_night") === "1";
+  var mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  function resolvedTheme() { if (nightOn) return "night"; if (baseTheme === "auto") return (mq && mq.matches) ? "dark" : "light"; return baseTheme; }
+  function applyTheme() {
+    var t = resolvedTheme();
+    document.documentElement.setAttribute("data-theme", t);
+    if ($("themeSeg")) Array.prototype.forEach.call($("themeSeg").children, function (b) { b.classList.toggle("sel", b.getAttribute("data-t") === baseTheme); });
+    if ($("nightTgl")) $("nightTgl").classList.toggle("on", nightOn);
+    var mc = document.querySelector('meta[name=theme-color]'); if (mc) mc.setAttribute("content", t === "night" ? "#000000" : t === "dark" ? "#0b1220" : "#f5f7fb");
+  }
+  if ($("themeSeg")) Array.prototype.forEach.call($("themeSeg").children, function (b) { b.onclick = function () { baseTheme = b.getAttribute("data-t"); LS.setItem("gg_basetheme", baseTheme); applyTheme(); }; });
+  if ($("nightTgl")) $("nightTgl").onclick = function () { nightOn = !nightOn; LS.setItem("gg_night", nightOn ? "1" : "0"); applyTheme(); };
+  if (mq && mq.addEventListener) mq.addEventListener("change", function () { if (baseTheme === "auto" && !nightOn) applyTheme(); });
+  applyTheme();
 
   function selUnits(u) { units = u; LS.setItem("gg_units", u); applyUnitLabels(); Array.prototype.forEach.call($("unitSeg").children, function (b) { b.classList.toggle("sel", b.getAttribute("data-u") === u); }); if (lastFix) updateLocation(lastFix); refreshTrackStats(); }
   Array.prototype.forEach.call($("unitSeg").children, function (b) { b.onclick = function () { selUnits(b.getAttribute("data-u")); }; b.classList.toggle("sel", b.getAttribute("data-u") === units); });

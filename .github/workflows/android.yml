@@ -66,23 +66,21 @@ jobs:
         if: github.ref == 'refs/heads/claude/local-gps-apk-app-LKd13' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.8
-          name: GeoPilot v3.8
+          tag_name: v3.9
+          name: GeoPilot v3.9
           body: |
-            GeoPilot 3.8 – Flugradar im FR24-Stil (Karte zuerst).
+            GeoPilot 3.9 – sauberer Neuaufbau: Start-Hub & Auto-Design.
             Lade unten **GeoPilot.apk** herunter und installiere sie auf deinem Android-Gerät.
 
-            • **Vollbild-Karte:** Das Flugradar ist jetzt eine bildschirmfüllende Karte;
-              die Flugliste sitzt als ein-/ausklappbares Bottom-Sheet darüber.
-            • **Labels auf der Karte:** Schalte mit 🏷️ Rufzeichen + Flughöhe direkt an
-              jedem Flugzeug ein.
-            • **Flug-Suche:** Rufzeichen oder Kennzeichen eingeben – in Sicht wird zentriert,
-              sonst wird der Flug weltweit gesucht, angeflogen und geöffnet.
-            • **Bessere Detailkarte:** Flugdetails (Foto, Route, Airline, Fortschritt)
-              öffnen als Bottom-Sheet, sodass die Karte sichtbar bleibt.
-            • Filter als Chips, runde Schnell-Buttons (Ebene, Labels, Flughäfen,
-              Auto-Refresh, Aktualisieren).
+            • **Start-Hub:** Die Startseite ist jetzt ein klarer Einstieg mit großen
+              Kacheln (Karte, Navigation, Flugradar, Tracking, Satelliten, Mehr) und
+              einem Status-Chip zum Ein-/Ausschalten – darunter weiterhin Kompass &
+              alle Details.
+            • **Automatisches Hell-/Dunkel-Design:** folgt der Android-Einstellung
+              (tagsüber hell, nachts dunkel). Manuell auf Hell oder Dunkel umstellbar,
+              Rot-/Nachtmodus bleibt erhalten – wählbar unter Mehr → Darstellung.
+            • Aufgeräumte, einheitliche Struktur und Optik, ruhigere Flächen.
 
-            Außerdem aus 3.7 enthalten: neu aufgebaute, logische Navigation mit
-            Favoriten (Zuhause/Arbeit), Ziel-Verlauf und POI-Umkreissuche.
+            Alle bisherigen Funktionen bleiben erhalten (Navigation mit Favoriten &
+            POI-Suche, FR24-Flugradar, Tracking, GNSS, Android Auto …).
           files: android/GeoPilot.apk

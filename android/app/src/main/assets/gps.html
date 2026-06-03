@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html lang="de" data-theme="light">
+<html lang="de" data-theme="auto">
 <head>
 <meta charset="UTF-8" />
 <title>GeoPilot</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#f4f6fb" />
+<script>try{var b=localStorage.getItem('gg_basetheme'),n=localStorage.getItem('gg_night')==='1',m=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches;if(!b){var o=localStorage.getItem('gg_theme');b=(o==='dark'||o==='light')?o:'auto';}var t=n?'night':(b==='auto'?(m?'dark':'light'):b);document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <link rel="stylesheet" href="leaflet/leaflet.css" />
 <script src="leaflet/leaflet.js"></script>
 <script src="qrcode.js"></script>
 <style>
   :root{
+    color-scheme:light dark;
     --primary:#2563eb; --secondary:#6366f1; --success:#16a34a;
     --warning:#f59e0b; --danger:#ef4444;
-    --bg-body:#f4f6fb; --bg-card:#ffffff; --bg-soft:#eef2f8;
-    --text-main:#0b1220; --text-muted:#5b6b85; --border:#e4e9f2;
-    --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.06);
+    --bg-body:#f5f7fb; --bg-card:#ffffff; --bg-soft:#eef2f8;
+    --text-main:#0b1220; --text-muted:#5b6b85; --border:#e6eaf2;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 6px 16px rgba(16,24,40,.06);
     --radius:18px; --nav-h:64px;
   }
   [data-theme="dark"]{--primary:#3b82f6;--secondary:#818cf8;--success:#22c55e;
@@ -24,7 +26,7 @@
     --bg-body:#000;--bg-card:#140000;--bg-soft:#0a0000;--text-main:#ff5a4d;--text-muted:#a30000;--border:#360000;--shadow:none;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-body);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-body);color:var(--text-main);display:flex;flex-direction:column;height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
   .topbar{display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--border);}
   .logo{width:34px;height:34px;border-radius:10px;flex:none;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:18px;}
   .title{font-size:1.05rem;font-weight:800;}
@@ -99,6 +101,15 @@
   .tile .v{font-size:1.12rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
   .tile .u{font-size:.6rem;color:var(--text-muted);font-weight:700;}
   .tile .l{font-size:.55rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;margin-top:5px;}
+  /* Start-Hub */
+  .hub-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 2px 14px;}
+  .hub-title{font-size:1.3rem;font-weight:800;line-height:1.1;}
+  .hub-sub{font-size:.78rem;color:var(--text-muted);margin-top:3px;}
+  .hub-power{flex:none;border:1px solid var(--border);background:var(--bg-card);color:var(--text-main);border-radius:999px;padding:8px 12px;font-size:.74rem;font-weight:700;display:flex;align-items:center;gap:7px;box-shadow:var(--shadow);}
+  .launch{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+  .launch-tile{flex-direction:column;gap:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px 6px;color:var(--text-main);box-shadow:var(--shadow);}
+  .launch-tile .lt-ic{font-size:25px;line-height:1;}
+  .launch-tile .lt-l{font-size:.74rem;font-weight:700;letter-spacing:.2px;}
   /* Onboarding-Tour */
   #tour{align-items:center;justify-content:center;}
   .tour-card{max-width:380px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:22px;padding:26px 22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45);}
@@ -268,8 +279,23 @@
   </div>
 
   <div class="pages">
-    <!-- DASHBOARD -->
+    <!-- START-HUB -->
     <div class="page active" id="page-dash">
+      <div class="hub-head">
+        <div>
+          <div class="hub-title">GeoPilot</div>
+          <div class="hub-sub" id="hubStatus">App ist aus – oben einschalten</div>
+        </div>
+        <div class="hub-power" id="hubPower"><span id="hubDot" class="dot"></span><span id="hubPowerTxt">Aus</span></div>
+      </div>
+      <div class="launch">
+        <button class="launch-tile" data-go="map"><span class="lt-ic">🗺️</span><span class="lt-l">Karte</span></button>
+        <button class="launch-tile" data-go="nav"><span class="lt-ic">🎯</span><span class="lt-l">Navigation</span></button>
+        <button class="launch-tile" data-go="flug"><span class="lt-ic">✈️</span><span class="lt-l">Flugradar</span></button>
+        <button class="launch-tile" data-go="tracking"><span class="lt-ic">📍</span><span class="lt-l">Tracking</span></button>
+        <button class="launch-tile" data-go="sat"><span class="lt-ic">🛰️</span><span class="lt-l">Satelliten</span></button>
+        <button class="launch-tile" data-go="more"><span class="lt-ic">⚙️</span><span class="lt-l">Mehr</span></button>
+      </div>
       <div class="card">
         <div class="compass-map-wrap">
           <div id="compassMap"></div>
@@ -627,8 +653,13 @@
       </div>
       <div class="card collapsible collapsed">
         <div class="section-title">Darstellung &amp; Einstellungen</div>
-        <div class="switch"><div><div class="t">Helles Design</div></div><div class="toggle" id="themeTgl"></div></div>
-        <div class="switch"><div><div class="t">🔴 Nachtmodus (Rotlicht)</div><div class="d">Schont die Nachtsicht</div></div><div class="toggle" id="nightTgl"></div></div>
+        <label class="fld">Design</label>
+        <div class="seg" id="themeSeg">
+          <button data-t="auto" class="sel">Auto</button>
+          <button data-t="light">Hell</button>
+          <button data-t="dark">Dunkel</button>
+        </div>
+        <div class="switch" style="margin-top:10px"><div><div class="t">🔴 Nachtmodus (Rotlicht)</div><div class="d">Schont die Nachtsicht – überschreibt das Design</div></div><div class="toggle" id="nightTgl"></div></div>
         <div class="switch"><div><div class="t">Bildschirm anlassen</div></div><div class="toggle" id="wakeTgl"></div></div>
         <div class="switch"><div><div class="t">Hintergrund-Tracking</div><div class="d">Position bei geschlossener App (nur APK)</div></div><div class="toggle" id="bgTgl"></div></div>
       </div>
@@ -639,12 +670,12 @@
         <button id="resetBtn" class="b-soft full-btn" style="margin-top:9px">🗑 Einstellungen zurücksetzen</button>
         <div class="hint" style="text-align:left;margin-top:10px">Wegpunkte, Touren &amp; Einstellungen bleiben <b>nur auf diesem Gerät</b>. Kein Konto, kein Tracking, keine Werbung.</div>
       </div>
-      <div class="hint">GeoPilot v3.6 · Karten offline · Live-Daten online</div>
+      <div class="hint">GeoPilot v3.9 · Karten offline · Live-Daten online</div>
     </div>
   </div>
 
   <div class="nav" id="nav">
-    <button data-tab="dash" class="sel"><span class="ic">🧭</span>Dashboard</button>
+    <button data-tab="dash" class="sel"><span class="ic">🏠</span>Start</button>
     <button data-tab="map"><span class="ic">🗺️</span>Karte</button>
     <button data-tab="nav"><span class="ic">🎯</span>Ziel</button>
     <button data-tab="tracking"><span class="ic">📍</span>Tracking</button>
@@ -692,7 +723,7 @@
       <p>Unter <b>Mehr → Akku</b>: Energiesparmodus aktivieren und „Von Akku-Optimierung ausnehmen" antippen, damit Hintergrund-Tracking nicht beendet wird.</p>
       <h3>🔒 Datenschutz</h3>
       <p>GeoPilot speichert Wegpunkte, Touren und Einstellungen <b>nur lokal</b> auf deinem Gerät – kein Konto, kein Tracking, keine Werbung. Deine Koordinaten werden nur dann an offene Dienste (OpenStreetMap, airplanes.live, OpenSky, Open-Meteo) gesendet, wenn du eine Online-Funktion (Suche, Route, Flugradar, Wetter) aktiv nutzt – immer über HTTPS.</p>
-      <p style="margin-top:14px;color:#64748b">GeoPilot v3.8 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
+      <p style="margin-top:14px;color:#64748b">GeoPilot v3.9 · keine Gewähr für Navigations-/Flugdaten – im Straßenverkehr Aufmerksamkeit beim Fahrer.</p>
     </div>
   </div>
 
